@@ -334,6 +334,8 @@ bool FindReferencesCmd::DoExecute(SBDebugger d, char** cmd,
   llv8.Load(target);
 
   ObjectScanner* scanner;
+  // TODO shouldn't be here, just for testing
+  uint64_t address;
 
   switch (type) {
     case ScanType::kFieldValue: {
@@ -359,6 +361,7 @@ bool FindReferencesCmd::DoExecute(SBDebugger d, char** cmd,
         return false;
       }
       scanner = new ReferenceScanner(search_value);
+      address = search_value.raw();
       break;
     }
     case ScanType::kPropertyName: {
@@ -404,6 +407,27 @@ bool FindReferencesCmd::DoExecute(SBDebugger d, char** cmd,
     result.SetStatus(eReturnStatusFailed);
     return false;
   }
+  v8::Value::InspectOptions inspect_options;
+
+  // Just for testing, only works for ReferenceScanner
+  ReferenceRecord *references = llscan.GetReferences(address);
+  if(references!=nullptr) {
+    for(auto reference_info : references->references_) {
+      if(reference_info->reference_type == rByIndex) {
+        result.Printf("0x%" PRIx64 ": %s[%" PRId64 "]=0x%" PRIx64 "\n",
+          reference_info->address, reference_info->type_name.c_str(), reference_info->index, address);
+      } else {
+        result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 "\n",
+          reference_info->address, reference_info->type_name.c_str(), reference_info->attribute.c_str(), address);
+      }
+    }
+
+    delete scanner;
+
+    result.SetStatus(eReturnStatusSuccessFinishResult);
+    return true;
+  }
+  llscan.mapstoreferences_[address] = new ReferenceRecord();
 
   // Walk all the object instances and handle them according to their type.
   TypeRecordMap mapstoinstances = llscan.GetMapsToInstances();
@@ -432,6 +456,8 @@ bool FindReferencesCmd::DoExecute(SBDebugger d, char** cmd,
         scanner->PrintRefs(result, str, err);
 
       } else if (type == v8->types()->kJSTypedArrayType) {
+        // result.Printf("I fell here with type [%s]!\n",
+        // heap_object.Inspect(&inspect_options, err).c_str());
         // These should only point to off heap memory,
         // this case should be a no-op.
       } else {
@@ -514,6 +540,7 @@ void FindReferencesCmd::ReferenceScanner::PrintRefs(
     if (v.raw() != search_value_.raw()) continue;
 
     std::string type_name = js_obj.GetTypeName(err);
+    llscan.mapstoreferences_[search_value_.raw()]->AddReference(js_obj.raw(), type_name, i);
     result.Printf("0x%" PRIx64 ": %s[%" PRId64 "]=0x%" PRIx64 "\n",
                   js_obj.raw(), type_name.c_str(), i, search_value_.raw());
   }
@@ -530,6 +557,7 @@ void FindReferencesCmd::ReferenceScanner::PrintRefs(
     if (v.raw() == search_value_.raw()) {
       std::string key = entry.first.ToString(err);
       std::string type_name = js_obj.GetTypeName(err);
+      llscan.mapstoreferences_[search_value_.raw()]->AddReference(js_obj.raw(), type_name, key);
       result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 "\n", js_obj.raw(),
                     type_name.c_str(), key.c_str(), search_value_.raw());
     }
@@ -551,6 +579,7 @@ void FindReferencesCmd::ReferenceScanner::PrintRefs(
     v8::String parent = sliced_str.Parent(err);
     if (err.Success() && parent.raw() == search_value_.raw()) {
       std::string type_name = sliced_str.GetTypeName(err);
+      llscan.mapstoreferences_[search_value_.raw()]->AddReference(str.raw(), type_name, "<Parent>");
       result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 "\n", str.raw(),
                     type_name.c_str(), "<Parent>", search_value_.raw());
     }
@@ -560,6 +589,7 @@ void FindReferencesCmd::ReferenceScanner::PrintRefs(
     v8::String first = cons_str.First(err);
     if (err.Success() && first.raw() == search_value_.raw()) {
       std::string type_name = cons_str.GetTypeName(err);
+      llscan.mapstoreferences_[search_value_.raw()]->AddReference(str.raw(), type_name, "<First>");
       result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 "\n", str.raw(),
                     type_name.c_str(), "<First>", search_value_.raw());
     }
@@ -567,6 +597,7 @@ void FindReferencesCmd::ReferenceScanner::PrintRefs(
     v8::String second = cons_str.Second(err);
     if (err.Success() && second.raw() == search_value_.raw()) {
       std::string type_name = cons_str.GetTypeName(err);
+      llscan.mapstoreferences_[search_value_.raw()]->AddReference(str.raw(), type_name, "<Second>");
       result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 "\n", str.raw(),
                     type_name.c_str(), "<Second>", search_value_.raw());
     }

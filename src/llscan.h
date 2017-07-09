@@ -142,6 +142,43 @@ class TypeRecord {
 
 typedef std::map<std::string, TypeRecord*> TypeRecordMap;
 
+enum ReferenceInfoType { rByIndex, rByAttribute };
+
+class ReferenceInfo {
+  public:
+    ReferenceInfo(uint64_t address, std::string type_name, int64_t index)
+      :address(address), type_name(type_name), index(index), reference_type(rByIndex)  {};
+    ReferenceInfo(uint64_t address, std::string type_name, std::string attribute)
+      :address(address), type_name(type_name), attribute(attribute), reference_type(rByAttribute)  {};
+    ~ReferenceInfo() {}
+
+    uint64_t address;
+    std::string type_name;
+    int64_t index;
+    std::string attribute;
+    ReferenceInfoType reference_type;
+};
+
+typedef std::set<ReferenceInfo*> ReferenceInfoSet;
+
+class ReferenceRecord {
+  public:
+    inline ReferenceInfoSet& GetInstances() { return references_; };
+
+    inline void AddReference(uint64_t address, std::string type_name, int64_t index) {
+      references_.insert(new ReferenceInfo(address, type_name, index));
+    };
+
+    inline void AddReference(uint64_t address, std::string type_name, std::string attribute) {
+      references_.insert(new ReferenceInfo(address, type_name, attribute));
+    };
+
+    ReferenceInfoSet references_;
+  private:
+};
+
+typedef std::map<uint64_t, ReferenceRecord*> ReferenceRecordMap;
+
 class FindJSObjectsVisitor : MemoryVisitor {
  public:
   FindJSObjectsVisitor(lldb::SBTarget& target, TypeRecordMap& mapstoinstances);
@@ -177,7 +214,18 @@ class LLScan {
   bool GenerateMemoryRanges(lldb::SBTarget target,
                             const char* segmentsfilename);
 
+
   inline TypeRecordMap& GetMapsToInstances() { return mapstoinstances_; };
+
+  inline ReferenceRecord* GetReferences(uint64_t address) {
+    ReferenceRecordMap::iterator it = mapstoreferences_.find(address);
+    if(it != mapstoreferences_.end())
+    {
+       return it->second;
+    }
+    return nullptr;
+  };
+  ReferenceRecordMap mapstoreferences_;
 
  private:
   void ScanMemoryRanges(FindJSObjectsVisitor& v);
