@@ -7,6 +7,68 @@
 
 namespace llnode {
 
+enum ReferenceInfoType { rByIndex, rByAttribute, rStringByIndex, rStringByAttribute };
+
+class ReferenceInfo {
+  public:
+    // For search by value or attribute
+    ReferenceInfo(uint64_t address, std::string type_name, int64_t index, uint64_t referred_address)
+      :address(address), type_name(type_name), index(index), reference_type(rByIndex), referred_address(referred_address)  {};
+    ReferenceInfo(uint64_t address, std::string type_name, std::string attribute, uint64_t referred_address)
+      :address(address), type_name(type_name), attribute(attribute), reference_type(rByAttribute), referred_address(referred_address)    {};
+
+      // For search by string value
+    ReferenceInfo(uint64_t address, std::string type_name, int64_t index, uint64_t referred_address, std::string string_value)
+      :address(address), type_name(type_name), index(index), reference_type(rStringByIndex), referred_address(referred_address), string_value(string_value)  {};
+    ReferenceInfo(uint64_t address, std::string type_name, std::string attribute, uint64_t referred_address, std::string string_value)
+      :address(address), type_name(type_name), attribute(attribute), reference_type(rStringByAttribute), referred_address(referred_address), string_value(string_value)    {};
+    ~ReferenceInfo() {}
+
+    void PrintRef(lldb::SBCommandReturnObject& result);
+
+  private:
+    uint64_t address;
+    std::string type_name;
+    int64_t index;
+    std::string attribute;
+    ReferenceInfoType reference_type;
+
+    uint64_t referred_address;
+    std::string string_value;
+};
+
+typedef std::set<ReferenceInfo*> ReferenceInfoSet;
+
+class ReferenceRecord {
+  public:
+    inline ReferenceInfoSet& GetInstances() { return references_; };
+
+    inline void AddReference(uint64_t address, std::string type_name, int64_t index, uint64_t referred_address) {
+      references_.insert(new ReferenceInfo(address, type_name, index, referred_address));
+    };
+    inline void AddReference(uint64_t address, std::string type_name, std::string attribute, uint64_t referred_address) {
+      references_.insert(new ReferenceInfo(address, type_name, attribute, referred_address));
+    };
+
+    inline void AddReference(uint64_t address, std::string type_name, int64_t index, uint64_t referred_address, std::string string_value) {
+      references_.insert(new ReferenceInfo(address, type_name, index, referred_address, string_value));
+    };
+    inline void AddReference(uint64_t address, std::string type_name, std::string attribute, uint64_t referred_address, std::string string_value) {
+      references_.insert(new ReferenceInfo(address, type_name, attribute, referred_address, string_value));
+    };
+
+    inline ReferenceInfoSet *GetReferences() { return &references_; }
+
+  private:
+    ReferenceInfoSet references_;
+};
+
+typedef std::map<uint64_t, ReferenceRecord*> ReferenceByValueRecordMap;
+typedef std::map<std::string, ReferenceRecord*> ReferenceByPropertyRecordMap;
+typedef std::map<std::string, ReferenceRecord*> ReferenceByStringRecordMap;
+
+
+
 class FindObjectsCmd : public CommandBase {
  public:
   ~FindObjectsCmd() override {}
@@ -48,20 +110,26 @@ class FindReferencesCmd : public CommandBase {
   class ObjectScanner {
    public:
     virtual ~ObjectScanner() {}
-    virtual void PrintRefs(lldb::SBCommandReturnObject& result,
+    virtual void ScanForRefs(ReferenceRecord *record,
                            v8::JSObject& js_obj, v8::Error& err) {}
-    virtual void PrintRefs(lldb::SBCommandReturnObject& result, v8::String& str,
+    virtual void ScanForRefs(ReferenceRecord *record, v8::String& str,
                            v8::Error& err) {}
+    virtual ReferenceInfoSet* GetReferences() {}
+    virtual void AddReferences(ReferenceRecord *record) {}
   };
+
+  ReferenceRecord *ScanForReferences(ObjectScanner *scanner);
 
   class ReferenceScanner : public ObjectScanner {
    public:
     ReferenceScanner(v8::Value search_value) : search_value_(search_value) {}
 
-    void PrintRefs(lldb::SBCommandReturnObject& result, v8::JSObject& js_obj,
+    void ScanForRefs(ReferenceRecord *record, v8::JSObject& js_obj,
                    v8::Error& err) override;
-    void PrintRefs(lldb::SBCommandReturnObject& result, v8::String& str,
+    void ScanForRefs(ReferenceRecord *record, v8::String& str,
                    v8::Error& err) override;
+    ReferenceInfoSet* GetReferences() override;
+    void AddReferences(ReferenceRecord *record) override;
 
    private:
     v8::Value search_value_;
@@ -73,9 +141,11 @@ class FindReferencesCmd : public CommandBase {
     PropertyScanner(std::string search_value) : search_value_(search_value) {}
 
     // We only scan properties on objects not Strings, use default no-op impl
-    // of PrintRefs for Strings.
-    void PrintRefs(lldb::SBCommandReturnObject& result, v8::JSObject& js_obj,
+    // of ScanForRefs for Strings.
+    void ScanForRefs(ReferenceRecord *record, v8::JSObject& js_obj,
                    v8::Error& err) override;
+    ReferenceInfoSet* GetReferences() override;
+    void AddReferences(ReferenceRecord *record) override;
 
    private:
     std::string search_value_;
@@ -86,10 +156,12 @@ class FindReferencesCmd : public CommandBase {
    public:
     StringScanner(std::string search_value) : search_value_(search_value) {}
 
-    void PrintRefs(lldb::SBCommandReturnObject& result, v8::JSObject& js_obj,
+    void ScanForRefs(ReferenceRecord *record, v8::JSObject& js_obj,
                    v8::Error& err) override;
-    void PrintRefs(lldb::SBCommandReturnObject& result, v8::String& str,
+    void ScanForRefs(ReferenceRecord *record, v8::String& str,
                    v8::Error& err) override;
+    ReferenceInfoSet* GetReferences() override;
+    void AddReferences(ReferenceRecord *record) override;
 
    private:
     std::string search_value_;
@@ -142,43 +214,6 @@ class TypeRecord {
 
 typedef std::map<std::string, TypeRecord*> TypeRecordMap;
 
-enum ReferenceInfoType { rByIndex, rByAttribute };
-
-class ReferenceInfo {
-  public:
-    ReferenceInfo(uint64_t address, std::string type_name, int64_t index)
-      :address(address), type_name(type_name), index(index), reference_type(rByIndex)  {};
-    ReferenceInfo(uint64_t address, std::string type_name, std::string attribute)
-      :address(address), type_name(type_name), attribute(attribute), reference_type(rByAttribute)  {};
-    ~ReferenceInfo() {}
-
-    uint64_t address;
-    std::string type_name;
-    int64_t index;
-    std::string attribute;
-    ReferenceInfoType reference_type;
-};
-
-typedef std::set<ReferenceInfo*> ReferenceInfoSet;
-
-class ReferenceRecord {
-  public:
-    inline ReferenceInfoSet& GetInstances() { return references_; };
-
-    inline void AddReference(uint64_t address, std::string type_name, int64_t index) {
-      references_.insert(new ReferenceInfo(address, type_name, index));
-    };
-
-    inline void AddReference(uint64_t address, std::string type_name, std::string attribute) {
-      references_.insert(new ReferenceInfo(address, type_name, attribute));
-    };
-
-    ReferenceInfoSet references_;
-  private:
-};
-
-typedef std::map<uint64_t, ReferenceRecord*> ReferenceRecordMap;
-
 class FindJSObjectsVisitor : MemoryVisitor {
  public:
   FindJSObjectsVisitor(lldb::SBTarget& target, TypeRecordMap& mapstoinstances);
@@ -217,15 +252,44 @@ class LLScan {
 
   inline TypeRecordMap& GetMapsToInstances() { return mapstoinstances_; };
 
-  inline ReferenceRecord* GetReferences(uint64_t address) {
-    ReferenceRecordMap::iterator it = mapstoreferences_.find(address);
-    if(it != mapstoreferences_.end())
+  // References By Value
+  inline void AddReferencesByValue(uint64_t address, ReferenceRecord* reference_record) {
+    references_by_value_[address] = reference_record;
+  }
+  inline ReferenceRecord* GetReferencesByValue(uint64_t address) {
+    ReferenceByValueRecordMap::iterator it = references_by_value_.find(address);
+    if(it != references_by_value_.end())
     {
        return it->second;
     }
     return nullptr;
   };
-  ReferenceRecordMap mapstoreferences_;
+
+  // References By Property
+  inline void AddReferencesByProperty(std::string property, ReferenceRecord* reference_record) {
+    references_by_property_[property] = reference_record;
+  }
+  inline ReferenceRecord* GetReferencesByProperty(std::string property) {
+    ReferenceByPropertyRecordMap::iterator it = references_by_property_.find(property);
+    if(it != references_by_property_.end())
+    {
+       return it->second;
+    }
+    return nullptr;
+  };
+
+  // References By String Value
+  inline void AddReferencesByString(std::string string_value, ReferenceRecord* reference_record) {
+    references_by_string_[string_value] = reference_record;
+  }
+  inline ReferenceRecord* GetReferencesByString(std::string string_value) {
+    ReferenceByStringRecordMap::iterator it = references_by_string_.find(string_value);
+    if(it != references_by_string_.end())
+    {
+       return it->second;
+    }
+    return nullptr;
+  };
 
  private:
   void ScanMemoryRanges(FindJSObjectsVisitor& v);
@@ -246,6 +310,10 @@ class LLScan {
   lldb::SBProcess process_;
   MemoryRange* ranges_ = nullptr;
   TypeRecordMap mapstoinstances_;
+
+  ReferenceByValueRecordMap references_by_value_;
+  ReferenceByPropertyRecordMap references_by_property_;
+  ReferenceByStringRecordMap references_by_string_;
 };
 
 }  // namespace llnode
