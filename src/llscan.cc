@@ -617,7 +617,7 @@ void FindReferencesCmd::PropertyScanner::ScanForRefs(
     }
     if (key == search_value_) {
       std::string type_name = js_obj.GetTypeName(err);
-      record->AddReference(js_obj.raw(), type_name, key.c_str(), entry.second.raw());
+      record->AddReference(js_obj.raw(), type_name, key, entry.second.raw());
     }
   }
 }
