@@ -534,8 +534,6 @@ void FindReferencesCmd::ReferenceScanner::ScanForRefs(
 
     std::string type_name = js_obj.GetTypeName(err);
     record->AddReference(js_obj.raw(), type_name, i, search_value_.raw());
-    // result.Printf("0x%" PRIx64 ": %s[%" PRId64 "]=0x%" PRIx64 "\n",
-                  // js_obj.raw(), type_name.c_str(), i, search_value_.raw());
   }
 
   // Walk all the properties in this object.
@@ -551,8 +549,6 @@ void FindReferencesCmd::ReferenceScanner::ScanForRefs(
       std::string key = entry.first.ToString(err);
       std::string type_name = js_obj.GetTypeName(err);
       record->AddReference(js_obj.raw(), type_name, key, search_value_.raw());
-      // result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 "\n", js_obj.raw(),
-                    // type_name.c_str(), key.c_str(), search_value_.raw());
     }
   }
 }
@@ -573,8 +569,6 @@ void FindReferencesCmd::ReferenceScanner::ScanForRefs(
     if (err.Success() && parent.raw() == search_value_.raw()) {
       std::string type_name = sliced_str.GetTypeName(err);
       record->AddReference(str.raw(), type_name, "<Parent>", search_value_.raw());
-      // result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 "\n", str.raw(),
-      //               type_name.c_str(), "<Parent>", search_value_.raw());
     }
   } else if (repr == v8->string()->kConsStringTag) {
     v8::ConsString cons_str(str);
@@ -583,16 +577,12 @@ void FindReferencesCmd::ReferenceScanner::ScanForRefs(
     if (err.Success() && first.raw() == search_value_.raw()) {
       std::string type_name = cons_str.GetTypeName(err);
       record->AddReference(str.raw(), type_name, "<First>", search_value_.raw());
-      // result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 "\n", str.raw(),
-      //               type_name.c_str(), "<First>", search_value_.raw());
     }
 
     v8::String second = cons_str.Second(err);
     if (err.Success() && second.raw() == search_value_.raw()) {
       std::string type_name = cons_str.GetTypeName(err);
       record->AddReference(str.raw(), type_name, "<Second>", search_value_.raw());
-      // result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 "\n", str.raw(),
-      //               type_name.c_str(), "<Second>", search_value_.raw());
     }
   }
   // Nothing to do for other kinds of string.
@@ -628,8 +618,6 @@ void FindReferencesCmd::PropertyScanner::ScanForRefs(
     if (key == search_value_) {
       std::string type_name = js_obj.GetTypeName(err);
       record->AddReference(js_obj.raw(), type_name, key.c_str(), entry.second.raw());
-      // result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 "\n", js_obj.raw(),
-      //               type_name.c_str(), key.c_str(), entry.second.raw());
     }
   }
 }
@@ -670,9 +658,6 @@ void FindReferencesCmd::StringScanner::ScanForRefs(ReferenceRecord *record,
         std::string type_name = js_obj.GetTypeName(err);
 
         record->AddReference(js_obj.raw(), type_name, i, v.raw(), value);
-        // result.Printf("0x%" PRIx64 ": %s[%" PRId64 "]=0x%" PRIx64 " '%s'\n",
-        //               js_obj.raw(), type_name.c_str(), i, v.raw(),
-        //               value.c_str());
       }
     }
   }
@@ -701,9 +686,6 @@ void FindReferencesCmd::StringScanner::ScanForRefs(ReferenceRecord *record,
           }
           std::string type_name = js_obj.GetTypeName(err);
           record->AddReference(js_obj.raw(), type_name, key, entry.second.raw(), value);
-          // result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 " '%s'\n",
-          //               js_obj.raw(), type_name.c_str(), key.c_str(),
-          //               entry.second.raw(), value.c_str());
         }
       }
     }
@@ -730,9 +712,6 @@ void FindReferencesCmd::StringScanner::ScanForRefs(ReferenceRecord *record,
     if (err.Success() && search_value_ == parent) {
       std::string type_name = sliced_str.GetTypeName(err);
       record->AddReference(str.raw(), type_name, "<Parent>", parent_str.raw(), parent);
-      // result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 " '%s'\n", str.raw(),
-      //               type_name.c_str(), "<Parent>", parent_str.raw(),
-      //               parent.c_str());
     }
   } else if (repr == v8->string()->kConsStringTag) {
     v8::ConsString cons_str(str);
@@ -752,9 +731,6 @@ void FindReferencesCmd::StringScanner::ScanForRefs(ReferenceRecord *record,
       if (err.Success() && search_value_ == first) {
         std::string type_name = cons_str.GetTypeName(err);
         record->AddReference(str.raw(), type_name, "<First>", first_str.raw(), first);
-        // result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 " '%s'\n", str.raw(),
-        //               type_name.c_str(), "<First>", first_str.raw(),
-        //               first.c_str());
       }
     }
 
@@ -773,9 +749,6 @@ void FindReferencesCmd::StringScanner::ScanForRefs(ReferenceRecord *record,
       if (err.Success() && search_value_ == second) {
         std::string type_name = cons_str.GetTypeName(err);
         record->AddReference(str.raw(), type_name, "<Second>", second_str.raw(), second);
-        // result.Printf("0x%" PRIx64 ": %s.%s=0x%" PRIx64 " '%s'\n", str.raw(),
-        //               type_name.c_str(), "<Second>", second_str.raw(),
-        //               second.c_str());
       }
     }
   }
