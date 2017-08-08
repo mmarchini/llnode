@@ -42,6 +42,39 @@ class NodeInfoCmd : public CommandBase {
                  lldb::SBCommandReturnObject& result) override;
 };
 
+class FindOrphansCmd : public CommandBase {
+ public:
+  ~FindOrphansCmd() override {}
+
+  bool DoExecute(lldb::SBDebugger d, char** cmd,
+                 lldb::SBCommandReturnObject& result) override;
+
+ private:
+   bool detailed_;
+};
+
+class PtrRefsCmd : public CommandBase {
+ public:
+  ~PtrRefsCmd() override {}
+
+  bool DoExecute(lldb::SBDebugger d, char** cmd,
+                 lldb::SBCommandReturnObject& result) override;
+
+ private:
+   bool detailed_;
+};
+
+class WorkQueueCmd : public CommandBase {
+ public:
+  ~WorkQueueCmd() override {}
+
+  bool DoExecute(lldb::SBDebugger d, char** cmd,
+                 lldb::SBCommandReturnObject& result) override;
+
+ private:
+   bool detailed_;
+};
+
 class FindReferencesCmd : public CommandBase {
  public:
   ~FindReferencesCmd() override {}
@@ -228,6 +261,9 @@ class LLScan {
       references_by_value_[address] = new ReferencesVector;
     }
     return references_by_value_[address];
+  };
+  inline bool ValueHasReferences(uint64_t address) {
+    return references_by_value_.count(address) > 0;
   };
 
   inline bool AreReferencesByPropertyLoaded() {

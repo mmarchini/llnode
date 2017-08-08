@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <iostream>
 #include <string>
 
 #include <lldb/API/SBExpressionOptions.h>
@@ -43,6 +44,8 @@ static int64_t LookupConstant(SBTarget target, const char* name, int64_t def,
   int64_t res;
 
   res = def;
+
+  // std::cout << "FindSymbols: " << name << std::endl;
 
   SBSymbolContextList context_list = target.FindSymbols(name);
   if (!context_list.IsValid() || context_list.GetSize() == 0) {

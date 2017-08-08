@@ -379,6 +379,18 @@ bool PluginInitialize(SBDebugger d) {
       "JavaScript string value\n"
       "\n");
 
+  v8.AddCommand(
+      "findorphans", new llnode::FindOrphansCmd(),
+      "Finds all the objects that cannot be reached from the root.\n");
+
+  v8.AddCommand(
+      "workqueue", new llnode::WorkQueueCmd(),
+      "Finds all the objects that cannot be reached from the root.\n");
+
+  v8.AddCommand(
+      "ptr_refs", new llnode::PtrRefsCmd(),
+      "Finds all the objects that cannot be reached from the root.\n");
+
   return true;
 }
 
