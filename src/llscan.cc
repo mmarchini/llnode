@@ -400,7 +400,6 @@ bool PtrRefsCmd::DoExecute(SBDebugger d, char** cmd,
     // Load data in blocks to speed up whole process
     for (auto searchAddress = address; searchAddress < address_end;
          searchAddress += block_size) {
-      std::cout << "itera" << std::endl;
       size_t loaded = std::min(address_end - searchAddress, block_size);
       process.ReadMemory(searchAddress, block, loaded, sberr);
       if (sberr.Fail()) {
@@ -468,7 +467,7 @@ bool WorkQueueCmd::DoExecute(SBDebugger d, char** cmd,
   for(int i = framesCount; i >= 0; i--) {
     std::cout << "Current frame: " << i << std::endl;
     envFrame = thread.GetFrameAtIndex(i);
-    value = envFrame.FindVariable("env");
+    value = envFrame.FindVariable("env");  // TODO looks like there was some changes on node code
     if (value.GetError().Fail()) {
       SBStream desc;
       if (value.GetError().GetDescription(desc)) {
@@ -478,12 +477,14 @@ bool WorkQueueCmd::DoExecute(SBDebugger d, char** cmd,
     } else {
       // std::cout << "Value: " << value.GetValueAsSigned() << std::endl;
       std::cout << "------------------------------------------" << std::endl;
+      std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << value.GetLoadAddress() << std::endl;
       std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << value.GetValueAsSigned() << std::endl;
+      std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << value.GetValueAsUnsigned() << std::endl;
       std::ostringstream out;
 
       // out << "Environment *env; env=(Environment *)" << value.GetValueAsSigned() << "; ReqWrap<uv_req_t> *wrap=(ReqWrap<uv_req_t> *)env->res_wrap_queue_.head_.next_; wrap->persistent_res_.val_==NULL;";
       // out << "Environment *env; env=(Environment *)" << value.GetValueAsSigned() << "; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_; wrap->persistent_handle_.val_==NULL;";
-      out << "Environment *env; env=(Environment *)" << value.GetValueAsSigned() << "; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_; wrap->object;";
+      out << "Environment *env; env=(Environment *)" << value.GetLoadAddress() << "; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_; &(wrap->persistent_handle_);";
       // "Environment *env; env=(Environment *)0x00000000040512c0; *env->handle_wrap_queue();"
       // p HandleWrap *wrap=(HandleWrap *)0x0000000004051ab8; wrap->persistent_handle_.val_==NULL;
       full_cmd = out.str();
@@ -501,13 +502,21 @@ bool WorkQueueCmd::DoExecute(SBDebugger d, char** cmd,
         return false;
       }
 
+
+      std::cout << "Worked so far!" << std::endl;
+      std::cout << "kTag:      " << llv8.heap_obj()->kTag << std::endl;
+      std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() << std::endl;
+      std::cout << "Value 2: 0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() + llv8.heap_obj()->kTag << std::endl;
+      std::cout << "Map:     0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() + llv8.heap_obj()->kMapOffset << std::endl;
+      // std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsUnsigned() << std::endl;
       std::cout << "Worked so far!" << std::endl;
 
-      v8::Value v8_value(&llv8, handleWorkQueue.GetValueAsSigned());
+      v8::JSObject v8_object(&llv8, handleWorkQueue.GetValueAsSigned() + llv8.heap_obj()->kTag);
       v8::Error err;
       v8::Value::InspectOptions inspect_options;
-      std::string res = v8_value.Inspect(&inspect_options, err);
+      std::string res = v8_object.Inspect(&inspect_options, err);
       if (err.Fail()) {
+        std::cout << err.GetMessage() << std::endl;
         result.SetError("Failed to evaluate expression");
         return false;
       }
@@ -1306,7 +1315,11 @@ uint64_t FindJSObjectsVisitor::Visit(uint64_t location, uint64_t word) {
   // Test if this is SMI
   // Skip inspecting things that look like Smi's, they aren't objects.
   v8::Smi smi(v8_value);
-  if (smi.Check()) return address_byte_size_;
+  if (smi.Check()) {
+    return address_byte_size_;
+  } else {
+    // std::cout << "not SMI my friend: 0x" << std::hex << location << ", 0x" << std::hex << word << std::endl;
+  }
 
   v8::HeapObject heap_object(v8_value);
   if (!heap_object.Check()) return address_byte_size_;

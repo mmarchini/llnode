@@ -440,6 +440,7 @@ class JSFrame : public Value {
 class LLV8 {
  public:
   LLV8() : target_(lldb::SBTarget()) {}
+  constants::HeapObject heap_obj;
 
   void Load(lldb::SBTarget target);
 
@@ -459,7 +460,6 @@ class LLV8 {
 
   constants::Common common;
   constants::Smi smi;
-  constants::HeapObject heap_obj;
   constants::Map map;
   constants::JSObject js_object;
   constants::HeapNumber heap_number;

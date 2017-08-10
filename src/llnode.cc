@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include <cinttypes>
+#include <iostream>
 
 #include <lldb/API/SBExpressionOptions.h>
 

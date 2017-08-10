@@ -1,6 +1,7 @@
 #include <assert.h>
 
 #include <algorithm>
+#include <iostream>
 #include <cinttypes>
 
 #include "llv8-inl.h"
@@ -1169,15 +1170,19 @@ HeapObject Map::Constructor(Error& err) {
 
 
 std::string JSObject::Inspect(InspectOptions* options, Error& err) {
+  std::cout << "1" << std::endl;
   HeapObject map_obj = GetMap(err);
   if (err.Fail()) return std::string();
+  std::cout << "2" << std::endl;
 
   Map map(map_obj);
   HeapObject constructor_obj = map.Constructor(err);
   if (err.Fail()) return std::string();
+  std::cout << "3" << std::endl;
 
   int64_t constructor_type = constructor_obj.GetType(err);
   if (err.Fail()) return std::string();
+  std::cout << "4" << std::endl;
 
   if (constructor_type != v8()->types()->kJSFunctionType)
     return "<Object: no constructor>";

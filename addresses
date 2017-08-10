@@ -1,0 +1,47 @@
+0x0000000005c20f50
+
+
+&    = 0x0000000005c20f88
+val_ = 0x0000000005c393a0
+
+p Environment *env; env=(Environment *)140729490337024; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_; &(wrap->persistent_handle_);
+
+0x0000000005c393a8
+p Environment *env; env=(Environment *)140729490337024; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_->next_; &(wrap->persistent_handle_);
+
+0x0000000005c21078
+p Environment *env; env=(Environment *)140729490337024; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_->next_->next_; &(wrap->persistent_handle_);
+
+0x0000000005c34218
+p Environment *env; env=(Environment *)140729490337024; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_->next_->next_->next_; &(wrap->persistent_handle_);
+
+0x0000000005c345e8
+p Environment *env; env=(Environment *)140729490337024; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_->next_->next_->next_->next_; &(wrap->persistent_handle_);
+
+0x00007ffe2347f1c8
+p Environment *env; env=(Environment *)140729490337024; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_->next_->next_->next_->next_->next_; &(wrap->persistent_handle_);
+
+0x0000000005c1eee0
+0x0000000005c1ee60
+0x000000002b716bfb
+0x0000000005c20f80
+0x00007ffe2347f1c0
+
+0x
+0x000020763a002bb9
+0x000020763A002BBA
+0xffffffffffffffff
+
+0x000020763a077441:<Array: length=17 {
+    [0]=0x000020763a002bb9:<Object: Timer>,
+    [1]=0x000020763a002471:<Object: WriteStream>,
+    [2]=0x000020763a037399:<Object: WriteStream>,
+    [3]=0x000020763a077301:<Object: Timer>}>
+(lldb) v8 inspect 0x20763a0026e9
+1
+1
+1
+0x000020763a0026e9:<Array: length=17 {
+    [0]=0x000020763a002bb9:<Object: Timer>,
+    [1]=0x000020763a002471:<Object: WriteStream>,
+    [2]=0x000020763a037399:<Object: WriteStream>}>
