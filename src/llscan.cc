@@ -443,11 +443,18 @@ bool WorkQueueCmd::DoExecute(SBDebugger d, char** cmd,
   SBTarget target = d.GetSelectedTarget();
   SBProcess process = target.GetProcess();
   SBThread thread = process.GetSelectedThread();
+  SBExpressionOptions options;
   uint32_t framesCount;
   SBValue value, handleWorkQueue;
   SBFrame currentFrame, envFrame;
   std::string full_cmd;
-  // "Environment *env; env=(Environment *)0x00000000040512c0; env->handle_wrap_queue_;"
+  std::ostringstream out;
+
+  int size = 8;  // TODO size is arch-dependent
+  // uint8_t *buffer = new uint8_t[size];
+  // XXX Ozadia time
+  uint64_t buffer = 0;
+  uint64_t teste = 0xa;
   if (!thread.IsValid()) {
     result.SetError("No valid process, please start something\n");
     return false;
@@ -455,65 +462,77 @@ bool WorkQueueCmd::DoExecute(SBDebugger d, char** cmd,
 
   framesCount = thread.GetNumFrames();
 
-  std::cout << "Frames Count: " << framesCount << std::endl;
-  std::cout << "======================================" << std::endl;
-
   currentFrame = thread.GetSelectedFrame();
 
-  /* BEGIN Brute force memory analysis */
-  /* END   Brute force memory analysis */
-
-
   for(int i = framesCount; i >= 0; i--) {
-    std::cout << "Current frame: " << i << std::endl;
     envFrame = thread.GetFrameAtIndex(i);
     value = envFrame.FindVariable("env");  // TODO looks like there was some changes on node code
     if (value.GetError().Fail()) {
       SBStream desc;
       if (value.GetError().GetDescription(desc)) {
-        std::cout << "Error: " << desc.GetData() << std::endl;
+        // std::cout << "Error: " << desc.GetData() << std::endl;
       }
       // result.SetStatus(eReturnStatusFailed);
     } else {
-      // std::cout << "Value: " << value.GetValueAsSigned() << std::endl;
-      std::cout << "------------------------------------------" << std::endl;
-      std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << value.GetLoadAddress() << std::endl;
-      std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << value.GetValueAsSigned() << std::endl;
-      std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << value.GetValueAsUnsigned() << std::endl;
-      std::ostringstream out;
+      // Env
+      std::cout << "&Env:    0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << value.GetLoadAddress() << std::endl;
 
-      // out << "Environment *env; env=(Environment *)" << value.GetValueAsSigned() << "; ReqWrap<uv_req_t> *wrap=(ReqWrap<uv_req_t> *)env->res_wrap_queue_.head_.next_; wrap->persistent_res_.val_==NULL;";
-      // out << "Environment *env; env=(Environment *)" << value.GetValueAsSigned() << "; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_; wrap->persistent_handle_.val_==NULL;";
-      out << "Environment *env; env=(Environment *)" << value.GetLoadAddress() << "; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_; &(wrap->persistent_handle_);";
-      // "Environment *env; env=(Environment *)0x00000000040512c0; *env->handle_wrap_queue();"
-      // p HandleWrap *wrap=(HandleWrap *)0x0000000004051ab8; wrap->persistent_handle_.val_==NULL;
+      // Queue
+      out.str("");
+      out.clear();
+      out << "Environment *env; env=(Environment *)" << value.GetLoadAddress() << "; &(env->handle_wrap_queue_)";
       full_cmd = out.str();
-      std::cout << full_cmd << std::endl;
-      std::cout << "------------------------------------------" << std::endl;
-
-      SBExpressionOptions options;
+      // std::cout << full_cmd << std::endl;
       handleWorkQueue = target.EvaluateExpression(full_cmd.c_str(), options);
-      if (value.GetError().Fail()) {
-        SBStream desc;
-        if (value.GetError().GetDescription(desc)) {
-          result.SetError(desc.GetData());
-        }
-        result.SetStatus(eReturnStatusFailed);
-        return false;
-      }
+      std::cout << "Queue:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() << std::endl;
 
+      // Wrap
+      out.str("");
+      out.clear();
+      out << "Environment *env; env=(Environment *)" << value.GetLoadAddress() << "; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_; wrap;";
+      full_cmd = out.str();
+      // std::cout << full_cmd << std::endl;
+      handleWorkQueue = target.EvaluateExpression(full_cmd.c_str(), options);
+      std::cout << "Wrap:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() << std::endl;
 
-      std::cout << "Worked so far!" << std::endl;
-      std::cout << "kTag:      " << llv8.heap_obj()->kTag << std::endl;
-      std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() << std::endl;
-      std::cout << "Value 2: 0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() + llv8.heap_obj()->kTag << std::endl;
-      std::cout << "Map:     0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() + llv8.heap_obj()->kMapOffset << std::endl;
+      // Persist
+      out.str("");
+      out.clear();
+      out << "Environment *env; env=(Environment *)" << value.GetLoadAddress() << "; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_; &(wrap->persistent_handle_->val_);";
+      full_cmd = out.str();
+      handleWorkQueue = target.EvaluateExpression(full_cmd.c_str(), options);
+      std::cout << "Persist:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() << std::endl;
+      std::cout << full_cmd << std::endl;
+
+      out.str("");
+      out.clear();
+      out << "Environment *env; env=(Environment *)" << value.GetLoadAddress() << "; HandleWrap *wrap=(HandleWrap *)(env->handle_wrap_queue_.head_.next_ - 3); wrap->persistent_handle_.val_;";
+      full_cmd = out.str();
+      handleWorkQueue = target.EvaluateExpression(full_cmd.c_str(), options);
+      addr_t myMemory = handleWorkQueue.GetValueAsUnsigned();
+
+      std::cout << "The golden goose:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << myMemory << std::endl;
+      std::cout << full_cmd << std::endl;
+      // std::cout << "kTag:      " << llv8.heap_obj()->kTag << std::endl;
+      // std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() << std::endl;
+      // std::cout << "Value 2: 0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() + llv8.heap_obj()->kTag << std::endl;
+      // std::cout << "Map:     0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() + llv8.heap_obj()->kMapOffset << std::endl;
       // std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsUnsigned() << std::endl;
       std::cout << "Worked so far!" << std::endl;
 
-      v8::JSObject v8_object(&llv8, handleWorkQueue.GetValueAsSigned() + llv8.heap_obj()->kTag);
+      SBError sberr;
+      process.ReadMemory(myMemory, &buffer, size, sberr);
+
+      std::cout << "Truth time(tes): " << teste << std::endl;
+      std::cout << "Truth time(dec): " << std::dec << buffer << std::endl;
+      std::cout << "Truth time(hex): " << std::hex << buffer << std::endl;
+      std::cout << "Truth time(tes): " << teste << std::endl;
+      llv8.Load(target);
+
+      v8::JSObject v8_object(&llv8, buffer);
       v8::Error err;
       v8::Value::InspectOptions inspect_options;
+      inspect_options.detailed = true;
       std::string res = v8_object.Inspect(&inspect_options, err);
       if (err.Fail()) {
         std::cout << err.GetMessage() << std::endl;
@@ -522,9 +541,9 @@ bool WorkQueueCmd::DoExecute(SBDebugger d, char** cmd,
       }
 
       result.Printf("%s\n", res.c_str());
-
-      std::cout << handleWorkQueue.GetTypeName() << std::endl;
-      std::cout << handleWorkQueue.GetValue() << std::endl;
+      //
+      // std::cout << handleWorkQueue.GetTypeName() << std::endl;
+      // std::cout << handleWorkQueue.GetValue() << std::endl;
 
       break;
     }

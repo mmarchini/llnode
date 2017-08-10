@@ -194,6 +194,8 @@ bool PrintCmd::DoExecute(SBDebugger d, char** cmd,
   // Load V8 constants from postmortem data
   llv8.Load(target);
 
+  std::cout << "Value as signed: 0x" << std::hex << value.GetValueAsSigned() << std::endl;
+
   v8::Value v8_value(&llv8, value.GetValueAsSigned());
   v8::Error err;
   std::string res = v8_value.Inspect(&inspect_options, err);

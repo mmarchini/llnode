@@ -1170,24 +1170,25 @@ HeapObject Map::Constructor(Error& err) {
 
 
 std::string JSObject::Inspect(InspectOptions* options, Error& err) {
-  std::cout << "1" << std::endl;
   HeapObject map_obj = GetMap(err);
   if (err.Fail()) return std::string();
-  std::cout << "2" << std::endl;
+  std::cout << "map_obj.raw(): 0x" << std::hex << map_obj.raw() << std::endl;
 
   Map map(map_obj);
+  std::cout << "map.raw(): 0x" << std::hex << map.raw() << std::endl;
   HeapObject constructor_obj = map.Constructor(err);
+  std::cout << "constructor_obj.raw(): 0x" << std::hex << constructor_obj.raw() << std::endl;
   if (err.Fail()) return std::string();
-  std::cout << "3" << std::endl;
 
   int64_t constructor_type = constructor_obj.GetType(err);
+  std::cout << "constructor_type: 0x" << constructor_type << std::endl;
   if (err.Fail()) return std::string();
-  std::cout << "4" << std::endl;
 
   if (constructor_type != v8()->types()->kJSFunctionType)
     return "<Object: no constructor>";
 
   JSFunction constructor(constructor_obj);
+  std::cout << "constructor.raw(): 0x" << constructor.raw() << std::endl;
 
   std::string res = "<Object: " + constructor.Name(err);
   if (err.Fail()) return std::string();
