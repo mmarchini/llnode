@@ -367,10 +367,7 @@ bool PtrRefsCmd::DoExecute(SBDebugger d, char** cmd,
                             SBCommandReturnObject& result) {
   std::istringstream params(*cmd);
   uint64_t ptr;
-  std::cout << *cmd << std::endl;
   params >> std::hex >> ptr;
-  std::cout << std::hex << ptr << std::endl;
-  std::cout << ptr << std::endl;
   SBTarget target = d.GetSelectedTarget();
   SBProcess process = target.GetProcess();
   const uint64_t addr_size = process.GetAddressByteSize();
@@ -404,7 +401,6 @@ bool PtrRefsCmd::DoExecute(SBDebugger d, char** cmd,
       process.ReadMemory(searchAddress, block, loaded, sberr);
       if (sberr.Fail()) {
         // TODO(indutny): add error information
-        std::cout << "PROBLAM" << std::endl;
         break;
       }
 
@@ -420,18 +416,11 @@ bool PtrRefsCmd::DoExecute(SBDebugger d, char** cmd,
           break;
 
         if (value == ptr) {
-          // std::cout << "Found ya:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << block[j] << std::endl;
           std::cout << "Found ya:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << j + searchAddress << std::endl;
-          // break;
         };
 
-        // j += static_cast<size_t>(increment);
       }
 
-      // if (increment == 0) {
-      //   done = true;
-      //   break;
-      // }
     }
   }
   return true;
@@ -447,14 +436,20 @@ bool WorkQueueCmd::DoExecute(SBDebugger d, char** cmd,
   uint32_t framesCount;
   SBValue value, handleWorkQueue;
   SBFrame currentFrame, envFrame;
+  std::string partialCmd;
   std::string full_cmd;
   std::ostringstream out;
+  std::ostringstream resultMsg;
+  v8::Value::InspectOptions inspect_options;
+  inspect_options.detailed = true;
+
+  llv8.Load(target);
 
   int size = 8;  // TODO size is arch-dependent
   // uint8_t *buffer = new uint8_t[size];
   // XXX Ozadia time
   uint64_t buffer = 0;
-  uint64_t teste = 0xa;
+  bool go=true;
   if (!thread.IsValid()) {
     result.SetError("No valid process, please start something\n");
     return false;
@@ -472,84 +467,65 @@ bool WorkQueueCmd::DoExecute(SBDebugger d, char** cmd,
       if (value.GetError().GetDescription(desc)) {
         // std::cout << "Error: " << desc.GetData() << std::endl;
       }
+      continue;
       // result.SetStatus(eReturnStatusFailed);
-    } else {
-      // Env
-      std::cout << "&Env:    0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << value.GetLoadAddress() << std::endl;
-
-      // Queue
-      out.str("");
-      out.clear();
-      out << "Environment *env; env=(Environment *)" << value.GetLoadAddress() << "; &(env->handle_wrap_queue_)";
-      full_cmd = out.str();
-      // std::cout << full_cmd << std::endl;
-      handleWorkQueue = target.EvaluateExpression(full_cmd.c_str(), options);
-      std::cout << "Queue:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() << std::endl;
-
-      // Wrap
-      out.str("");
-      out.clear();
-      out << "Environment *env; env=(Environment *)" << value.GetLoadAddress() << "; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_; wrap;";
-      full_cmd = out.str();
-      // std::cout << full_cmd << std::endl;
-      handleWorkQueue = target.EvaluateExpression(full_cmd.c_str(), options);
-      std::cout << "Wrap:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() << std::endl;
-
-      // Persist
-      out.str("");
-      out.clear();
-      out << "Environment *env; env=(Environment *)" << value.GetLoadAddress() << "; HandleWrap *wrap=(HandleWrap *)env->handle_wrap_queue_.head_.next_; &(wrap->persistent_handle_->val_);";
-      full_cmd = out.str();
-      handleWorkQueue = target.EvaluateExpression(full_cmd.c_str(), options);
-      std::cout << "Persist:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() << std::endl;
-      std::cout << full_cmd << std::endl;
-
-      out.str("");
-      out.clear();
-      out << "Environment *env; env=(Environment *)" << value.GetLoadAddress() << "; HandleWrap *wrap=(HandleWrap *)(env->handle_wrap_queue_.head_.next_ - 3); wrap->persistent_handle_.val_;";
-      full_cmd = out.str();
-      handleWorkQueue = target.EvaluateExpression(full_cmd.c_str(), options);
-      addr_t myMemory = handleWorkQueue.GetValueAsUnsigned();
-
-      std::cout << "The golden goose:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << myMemory << std::endl;
-      std::cout << full_cmd << std::endl;
-      // std::cout << "kTag:      " << llv8.heap_obj()->kTag << std::endl;
-      // std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() << std::endl;
-      // std::cout << "Value 2: 0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() + llv8.heap_obj()->kTag << std::endl;
-      // std::cout << "Map:     0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsSigned() + llv8.heap_obj()->kMapOffset << std::endl;
-      // std::cout << "Value:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << handleWorkQueue.GetValueAsUnsigned() << std::endl;
-      std::cout << "Worked so far!" << std::endl;
-
-      SBError sberr;
-      process.ReadMemory(myMemory, &buffer, size, sberr);
-
-      std::cout << "Truth time(tes): " << teste << std::endl;
-      std::cout << "Truth time(dec): " << std::dec << buffer << std::endl;
-      std::cout << "Truth time(hex): " << std::hex << buffer << std::endl;
-      std::cout << "Truth time(tes): " << teste << std::endl;
-      llv8.Load(target);
-
-      v8::JSObject v8_object(&llv8, buffer);
-      v8::Error err;
-      v8::Value::InspectOptions inspect_options;
-      inspect_options.detailed = true;
-      std::string res = v8_object.Inspect(&inspect_options, err);
-      if (err.Fail()) {
-        std::cout << err.GetMessage() << std::endl;
-        result.SetError("Failed to evaluate expression");
-        return false;
-      }
-
-      result.Printf("%s\n", res.c_str());
-      //
-      // std::cout << handleWorkQueue.GetTypeName() << std::endl;
-      // std::cout << handleWorkQueue.GetValue() << std::endl;
-
-      break;
     }
+    break;
   }
 
-  // thread.SetSelectedFrame();
+  if(value.GetError().Fail()) {
+    return false;
+  }
+
+  std::string currentIteration = "env->handle_wrap_queue_.head_.next_";
+  // FIXME sometimes Enviroment is loaded from the wrong place
+  out << "Environment *env; env=(Environment *)";
+  out << value.GetLoadAddress() << ";";
+  out << "HandleWrap *wrap = (HandleWrap *)";
+  partialCmd = out.str();
+  int activeHandles = 0;
+  // TODO needs a stop condition
+  while(go) {
+    out.str("");
+    out.clear();
+    // TODO check this -3
+    out << partialCmd << "(" << currentIteration << " - 3); wrap->persistent_handle_.val_;";
+    handleWorkQueue = target.EvaluateExpression(out.str().c_str(), options);
+    if(handleWorkQueue.GetError().Fail()) {
+      // TODO better message;
+      result.SetError("Failed to evaluate expression");
+      return false;
+    }
+    addr_t myMemory = handleWorkQueue.GetValueAsUnsigned();
+    if(myMemory == 0) {
+      continue;
+    }
+
+    SBError sberr;
+    process.ReadMemory(myMemory, &buffer, size, sberr);
+    // TODO needs a better check
+    if(sberr.Fail()) {
+      break;
+    }
+
+    v8::JSObject v8_object(&llv8, buffer);
+    v8::Error err;
+    std::string res = v8_object.Inspect(&inspect_options, err);
+    if (err.Fail()) {
+      // result.SetError("Failed to evaluate expression");
+      break;
+    }
+
+    activeHandles++;
+    resultMsg << res.c_str() << std::endl;
+
+    out.str("");
+    out.clear();
+    out << currentIteration << "->next_";
+    currentIteration = out.str();
+  }
+  result.Printf("Active handles: %d\n\n", activeHandles);
+  result.Printf("%s", resultMsg.str().c_str());
   return true;
 }
 
@@ -562,33 +538,6 @@ bool FindReferencesCmd::DoExecute(SBDebugger d, char** cmd,
   }
 
   SBTarget target = d.GetSelectedTarget();
-
-  // SBSymbolContextList context_list = target.FindSymbols("uv_queue_work");
-  //
-  // if (!context_list.IsValid() || context_list.GetSize() == 0) {
-  //   std::cout << "aaaaaa" << std::endl;
-  // } else {
-  //   std::cout << "whoooaaaaa 1" << std::endl;
-  //
-  //   SBSymbolContext context = context_list.GetContextAtIndex(0);
-  //   SBSymbol symbol = context.GetSymbol();
-  //   if (!symbol.IsValid()) {
-  //     std::cout << "aaaaaa" << std::endl;
-  //   } else {
-  //     std::cout << "whoooaaaaa 2" << std::endl;
-  //
-  //     SBAddress start = symbol.GetStartAddress();
-  //     SBAddress end = symbol.GetEndAddress();
-  //     // size_t size = end.GetOffset() - start.GetOffset();
-  //
-  //     SBError sberr;
-  //
-  //     SBProcess process = target.GetProcess();
-  //     addr_t addr = start.GetFileAddress();
-  //
-  //     std::cout << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << addr << std::endl;
-  //   }
-  // }
 
   if (!target.IsValid()) {
     result.SetError("No valid process, please start something\n");
@@ -1334,11 +1283,7 @@ uint64_t FindJSObjectsVisitor::Visit(uint64_t location, uint64_t word) {
   // Test if this is SMI
   // Skip inspecting things that look like Smi's, they aren't objects.
   v8::Smi smi(v8_value);
-  if (smi.Check()) {
-    return address_byte_size_;
-  } else {
-    // std::cout << "not SMI my friend: 0x" << std::hex << location << ", 0x" << std::hex << word << std::endl;
-  }
+  if (smi.Check()) return address_byte_size_;
 
   v8::HeapObject heap_object(v8_value);
   if (!heap_object.Check()) return address_byte_size_;
@@ -1507,11 +1452,6 @@ void LLScan::ScanMemoryRanges(FindJSObjectsVisitor& v) {
 
     SBError sberr;
     uint64_t address_end = address + len;
-
-    // std::cout << "Memory range start:   0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << address << std::endl;
-    // std::cout << "Memory range end:     0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << address_end << std::endl;
-    // std::cout << "0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << address << ", " << "0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << address_end << std::endl;
-    // std::cout << "Memory range end:     0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << address_end << std::endl;
 
     // Load data in blocks to speed up whole process
     for (auto searchAddress = address; searchAddress < address_end;
