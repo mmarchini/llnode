@@ -35,6 +35,22 @@ class PrintCmd : public CommandBase {
   bool detailed_;
 };
 
+class GetActiveHandlesCmd : public CommandBase {
+ public:
+  ~GetActiveHandlesCmd() override {}
+
+  bool DoExecute(lldb::SBDebugger d, char** cmd,
+                 lldb::SBCommandReturnObject& result) override;
+};
+
+class GetActiveRequestsCmd : public CommandBase {
+ public:
+  ~GetActiveRequestsCmd() override {}
+
+  bool DoExecute(lldb::SBDebugger d, char** cmd,
+                 lldb::SBCommandReturnObject& result) override;
+};
+
 class ListCmd : public CommandBase {
  public:
   ~ListCmd() override {}

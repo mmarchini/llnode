@@ -481,7 +481,7 @@ bool WorkQueueCmd::DoExecute(SBDebugger d, char** cmd,
   // FIXME sometimes Enviroment is loaded from the wrong place
   out << "Environment *env; env=(Environment *)";
   out << value.GetLoadAddress() << ";";
-  out << "HandleWrap *wrap = (HandleWrap *)";
+  out << "AsyncWrap *wrap = (AsyncWrap *)";
   partialCmd = out.str();
   int activeHandles = 0;
   // TODO needs a stop condition
