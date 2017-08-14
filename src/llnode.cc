@@ -4,6 +4,8 @@
 #include <string.h>
 
 #include <cinttypes>
+#include <iostream>
+#include <sstream>
 
 #include <lldb/API/SBExpressionOptions.h>
 
@@ -26,6 +28,8 @@ using lldb::SBThread;
 using lldb::SBValue;
 using lldb::eReturnStatusFailed;
 using lldb::eReturnStatusSuccessFinishResult;
+using lldb::SBProcess;
+using lldb::addr_t;
 
 v8::LLV8 llv8;
 
@@ -296,6 +300,210 @@ bool ListCmd::DoExecute(SBDebugger d, char** cmd,
   return true;
 }
 
+bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
+                            SBCommandReturnObject& result) {
+  SBTarget target = d.GetSelectedTarget();
+  SBProcess process = target.GetProcess();
+  SBThread thread = process.GetSelectedThread();
+  SBExpressionOptions options;
+  uint32_t framesCount;
+  SBValue value, handleWorkQueue;
+  SBFrame currentFrame, envFrame;
+  std::string partialCmd;
+  std::string full_cmd;
+  std::ostringstream out;
+  std::ostringstream resultMsg;
+  v8::Value::InspectOptions inspect_options;
+  inspect_options.detailed = true;
+
+  llv8.Load(target);
+
+  int size = 8;  // TODO size is arch-dependent
+  // uint8_t *buffer = new uint8_t[size];
+  // XXX Ozadia time
+  uint64_t buffer = 0;
+  bool go=true;
+  if (!thread.IsValid()) {
+    result.SetError("No valid process, please start something\n");
+    return false;
+  }
+
+  framesCount = thread.GetNumFrames();
+
+  currentFrame = thread.GetSelectedFrame();
+
+  for(int i = framesCount; i >= 0; i--) {
+    envFrame = thread.GetFrameAtIndex(i);
+    value = envFrame.FindVariable("env");  // TODO looks like there was some changes on node code
+    if (value.GetError().Fail()) {
+      SBStream desc;
+      if (value.GetError().GetDescription(desc)) {
+        // std::cout << "Error: " << desc.GetData() << std::endl;
+      }
+      continue;
+      // result.SetStatus(eReturnStatusFailed);
+    }
+    break;
+  }
+
+  if(value.GetError().Fail()) {
+    return false;
+  }
+
+  std::string currentIteration = "env->handle_wrap_queue_.head_.next_";
+  // FIXME sometimes Enviroment is loaded from the wrong place
+  out << "Environment *env; env=(Environment *)";
+  out << value.GetLoadAddress() << ";";
+  out << "AsyncWrap *wrap = (AsyncWrap *)";
+  partialCmd = out.str();
+  int activeHandles = 0;
+  // TODO needs a stop condition
+  while(go) {
+    out.str("");
+    out.clear();
+    // TODO check this -3
+    out << partialCmd << "(" << currentIteration << " - 3); wrap->persistent_handle_.val_;";
+    handleWorkQueue = target.EvaluateExpression(out.str().c_str(), options);
+    if(handleWorkQueue.GetError().Fail()) {
+      // TODO better message;
+      result.SetError("Failed to evaluate expression");
+      return false;
+    }
+    addr_t myMemory = handleWorkQueue.GetValueAsUnsigned();
+    if(myMemory == 0) {
+      continue;
+    }
+
+    SBError sberr;
+    process.ReadMemory(myMemory, &buffer, size, sberr);
+    // TODO needs a better check
+    if(sberr.Fail()) {
+      break;
+    }
+
+    v8::JSObject v8_object(&llv8, buffer);
+    v8::Error err;
+    std::string res = v8_object.Inspect(&inspect_options, err);
+    if (err.Fail()) {
+      // result.SetError("Failed to evaluate expression");
+      break;
+    }
+
+    activeHandles++;
+    resultMsg << res.c_str() << std::endl;
+
+    out.str("");
+    out.clear();
+    out << currentIteration << "->next_";
+    currentIteration = out.str();
+  }
+  result.Printf("Active handles: %d\n\n", activeHandles);
+  result.Printf("%s", resultMsg.str().c_str());
+  return true;
+}
+
+bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
+                            SBCommandReturnObject& result) {
+  SBTarget target = d.GetSelectedTarget();
+  SBProcess process = target.GetProcess();
+  SBThread thread = process.GetSelectedThread();
+  SBExpressionOptions options;
+  uint32_t framesCount;
+  SBValue value, handleWorkQueue;
+  SBFrame currentFrame, envFrame;
+  std::string partialCmd;
+  std::string full_cmd;
+  std::ostringstream out;
+  std::ostringstream resultMsg;
+  v8::Value::InspectOptions inspect_options;
+  inspect_options.detailed = true;
+
+  llv8.Load(target);
+
+  int size = 8;  // TODO size is arch-dependent
+  // uint8_t *buffer = new uint8_t[size];
+  // XXX Ozadia time
+  uint64_t buffer = 0;
+  bool go=true;
+  if (!thread.IsValid()) {
+    result.SetError("No valid process, please start something\n");
+    return false;
+  }
+
+  framesCount = thread.GetNumFrames();
+
+  currentFrame = thread.GetSelectedFrame();
+
+  for(int i = framesCount; i >= 0; i--) {
+    envFrame = thread.GetFrameAtIndex(i);
+    value = envFrame.FindVariable("env");  // TODO looks like there was some changes on node code
+    if (value.GetError().Fail()) {
+      SBStream desc;
+      if (value.GetError().GetDescription(desc)) {
+        // std::cout << "Error: " << desc.GetData() << std::endl;
+      }
+      continue;
+      // result.SetStatus(eReturnStatusFailed);
+    }
+    break;
+  }
+
+  if(value.GetError().Fail()) {
+    return false;
+  }
+
+  std::string currentIteration = "env->req_wrap_queue_.head_.next_";
+  // FIXME sometimes Enviroment is loaded from the wrong place
+  out << "Environment *env; env=(Environment *)";
+  out << value.GetLoadAddress() << ";";
+  out << "AsyncWrap *wrap = (AsyncWrap *)";
+  partialCmd = out.str();
+  int activeHandles = 0;
+  // TODO needs a stop condition
+  while(go) {
+    out.str("");
+    out.clear();
+    // TODO check this -3
+    out << partialCmd << "(" << currentIteration << " - 3); wrap->persistent_handle_.val_;";
+    handleWorkQueue = target.EvaluateExpression(out.str().c_str(), options);
+    if(handleWorkQueue.GetError().Fail()) {
+      // TODO better message;
+      result.SetError("Failed to evaluate expression");
+      return false;
+    }
+    addr_t myMemory = handleWorkQueue.GetValueAsUnsigned();
+    if(myMemory == 0) {
+      continue;
+    }
+
+    SBError sberr;
+    process.ReadMemory(myMemory, &buffer, size, sberr);
+    // TODO needs a better check
+    if(sberr.Fail()) {
+      break;
+    }
+
+    v8::JSObject v8_object(&llv8, buffer);
+    v8::Error err;
+    std::string res = v8_object.Inspect(&inspect_options, err);
+    if (err.Fail()) {
+      // result.SetError("Failed to evaluate expression");
+      break;
+    }
+
+    activeHandles++;
+    resultMsg << res.c_str() << std::endl;
+
+    out.str("");
+    out.clear();
+    out << currentIteration << "->next_";
+    currentIteration = out.str();
+  }
+  result.Printf("Active requests: %d\n\n", activeHandles);
+  result.Printf("%s", resultMsg.str().c_str());
+  return true;
+}
+
 }  // namespace llnode
 
 namespace lldb {
@@ -378,6 +586,18 @@ bool PluginInitialize(SBDebugger d) {
       " * -s, --string string  - all properties that refer to the specified "
       "JavaScript string value\n"
       "\n");
+
+  v8.AddCommand(
+      "getactivehandles", new llnode::GetActiveHandlesCmd(),
+      "*EXPERIMENTAL* Equivalent to running process._getActiveHandles. "
+      "This command is still being developed and for now it only works "
+      "on node Debug build.\n");
+
+  v8.AddCommand(
+      "getactiverequests", new llnode::GetActiveRequestsCmd(),
+      "*EXPERIMENTAL* Equivalent to running process._getActiveRequests. "
+      "This command is still being developed and for now it only works "
+      "on node Debug build.\n");
 
   return true;
 }
