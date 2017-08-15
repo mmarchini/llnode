@@ -29,6 +29,9 @@ using lldb::SBValue;
 using lldb::eReturnStatusFailed;
 using lldb::eReturnStatusSuccessFinishResult;
 using lldb::SBProcess;
+using lldb::SBAddress;
+using lldb::SBSymbolContext;
+using lldb::SBSymbolContextList;
 using lldb::addr_t;
 
 v8::LLV8 llv8;
@@ -300,18 +303,70 @@ bool ListCmd::DoExecute(SBDebugger d, char** cmd,
   return true;
 }
 
+static int64_t LookupConstant(SBTarget target, const char* name, int64_t def,
+                              v8::Error& err) {
+  int64_t res;
+
+  res = def;
+
+  // std::cout << "FindSymbols: " << name << std::endl;
+
+  SBSymbolContextList context_list = target.FindSymbols(name);
+  if (!context_list.IsValid() || context_list.GetSize() == 0) {
+    err = v8::Error::Failure("Failed to find symbol");
+    return res;
+  }
+
+  SBSymbolContext context = context_list.GetContextAtIndex(0);
+  SBSymbol symbol = context.GetSymbol();
+  if (!symbol.IsValid()) {
+    err = v8::Error::Failure("Failed to fetch symbol");
+    return res;
+  }
+
+  SBAddress start = symbol.GetStartAddress();
+  SBAddress end = symbol.GetEndAddress();
+  size_t size = end.GetOffset() - start.GetOffset();
+
+  SBError sberr;
+
+  SBProcess process = target.GetProcess();
+  addr_t addr = start.GetFileAddress();
+
+  // NOTE: size could be bigger for at the end symbols
+  if (size >= 8) {
+    process.ReadMemory(addr, &res, 8, sberr);
+  } else if (size == 4) {
+    int32_t tmp;
+    process.ReadMemory(addr, &tmp, size, sberr);
+    res = static_cast<int64_t>(tmp);
+  } else if (size == 2) {
+    int16_t tmp;
+    process.ReadMemory(addr, &tmp, size, sberr);
+    res = static_cast<int64_t>(tmp);
+  } else if (size == 1) {
+    int8_t tmp;
+    process.ReadMemory(addr, &tmp, size, sberr);
+    res = static_cast<int64_t>(tmp);
+  } else {
+    err = v8::Error::Failure("Unexpected symbol size");
+    return res;
+  }
+
+  if (sberr.Fail())
+    err = v8::Error::Failure("Failed to load symbol");
+  else
+    err = v8::Error::Ok();
+
+  return res;
+}
+
 bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
                             SBCommandReturnObject& result) {
   SBTarget target = d.GetSelectedTarget();
   SBProcess process = target.GetProcess();
   SBThread thread = process.GetSelectedThread();
-  SBExpressionOptions options;
-  uint32_t framesCount;
-  SBValue value, handleWorkQueue;
-  SBFrame currentFrame, envFrame;
-  std::string partialCmd;
-  std::string full_cmd;
-  std::ostringstream out;
+  SBError sberr;
   std::ostringstream resultMsg;
   v8::Value::InspectOptions inspect_options;
   inspect_options.detailed = true;
@@ -319,6 +374,29 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
   llv8.Load(target);
 
   int size = 8;  // TODO size is arch-dependent
+  int64_t envPtr = 0;
+  uint64_t env = 0;
+  int64_t handle = 0;
+  int64_t head = 0;
+  int64_t next = 0;
+  int64_t persistant_handle = 0;
+  int64_t val = 0;
+  v8::Error err2;
+
+  envPtr = LookupConstant(target, "node::nodedbg_currentEnvironment", envPtr, err2);
+  process.ReadMemory(envPtr, &env, size, sberr);
+
+  handle = LookupConstant(target, "node::nodedbg_handlesQueueOffset", handle, err2);
+  head = LookupConstant(target, "node::nodedbg_listHeadNodeOffset", head, err2);
+  persistant_handle = LookupConstant(target, "node::nodedbg_class__BaseObject__persistant_handle", persistant_handle, err2);
+  val = LookupConstant(target, "v8dbg_class_Cell__value__Object", val, err2);
+
+  std::cout << std::hex << env << std::endl;
+  std::cout << std::hex << handle << std::endl;
+  std::cout << std::hex << head << std::endl;
+  std::cout << std::hex << next << std::endl;
+  std::cout << std::hex << val << std::endl;
+
   // uint8_t *buffer = new uint8_t[size];
   // XXX Ozadia time
   uint64_t buffer = 0;
@@ -328,56 +406,34 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
     return false;
   }
 
-  framesCount = thread.GetNumFrames();
-
-  currentFrame = thread.GetSelectedFrame();
-
-  for(int i = framesCount; i >= 0; i--) {
-    envFrame = thread.GetFrameAtIndex(i);
-    value = envFrame.FindVariable("env");  // TODO looks like there was some changes on node code
-    if (value.GetError().Fail()) {
-      SBStream desc;
-      if (value.GetError().GetDescription(desc)) {
-        // std::cout << "Error: " << desc.GetData() << std::endl;
-      }
-      continue;
-      // result.SetStatus(eReturnStatusFailed);
-    }
-    break;
-  }
-
-  if(value.GetError().Fail()) {
-    return false;
-  }
-
-  std::string currentIteration = "env->handle_wrap_queue_.head_.next_";
-  // FIXME sometimes Enviroment is loaded from the wrong place
-  out << "Environment *env; env=(Environment *)";
-  out << value.GetLoadAddress() << ";";
-  out << "AsyncWrap *wrap = (AsyncWrap *)";
-  partialCmd = out.str();
   int activeHandles = 0;
+  uint64_t currentHandleWrap = env;  // + handle + head + next;
+  std::cout << "env: " << std::hex << currentHandleWrap << std::endl;
+  currentHandleWrap += handle;
+  std::cout << "queue: " << std::hex << currentHandleWrap << std::endl;
+  currentHandleWrap += head;
+  std::cout << "head: " << std::hex << currentHandleWrap << std::endl;
+  currentHandleWrap += next;
+  std::cout << "next: " << std::hex << currentHandleWrap << std::endl;
+  std::cout << "- -------------------- -" << std::endl;
   // TODO needs a stop condition
   while(go) {
-    out.str("");
-    out.clear();
     // TODO check this -3
-    out << partialCmd << "(" << currentIteration << " - 3); wrap->persistent_handle_.val_;";
-    handleWorkQueue = target.EvaluateExpression(out.str().c_str(), options);
-    if(handleWorkQueue.GetError().Fail()) {
-      // TODO better message;
-      result.SetError("Failed to evaluate expression");
-      return false;
-    }
-    addr_t myMemory = handleWorkQueue.GetValueAsUnsigned();
+    addr_t myMemory = currentHandleWrap;
+    std::cout << "a: " << std::hex << currentHandleWrap << std::endl;
+    std::cout << "next: " << std::hex << myMemory << std::endl;
+    myMemory  = myMemory - (3 * 64);
+    std::cout << "next(fixed): " << std::hex << myMemory << std::endl;
+    myMemory += val;
+    std::cout << "val: " << std::hex << myMemory << std::endl;
     if(myMemory == 0) {
       continue;
     }
 
-    SBError sberr;
     process.ReadMemory(myMemory, &buffer, size, sberr);
     // TODO needs a better check
     if(sberr.Fail()) {
+      std::cout << "That's the end";
       break;
     }
 
@@ -392,10 +448,7 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
     activeHandles++;
     resultMsg << res.c_str() << std::endl;
 
-    out.str("");
-    out.clear();
-    out << currentIteration << "->next_";
-    currentIteration = out.str();
+    currentHandleWrap += next;
   }
   result.Printf("Active handles: %d\n\n", activeHandles);
   result.Printf("%s", resultMsg.str().c_str());
