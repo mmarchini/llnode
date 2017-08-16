@@ -376,26 +376,21 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
   int size = 8;  // TODO size is arch-dependent
   int64_t envPtr = 0;
   uint64_t env = 0;
-  int64_t handle = 0;
+  int64_t queue = 0;
   int64_t head = 0;
   int64_t next = 0;
+  int64_t node = 0;
   int64_t persistant_handle = 0;
-  int64_t val = 0;
   v8::Error err2;
 
   envPtr = LookupConstant(target, "node::nodedbg_currentEnvironment", envPtr, err2);
   process.ReadMemory(envPtr, &env, size, sberr);
 
-  handle = LookupConstant(target, "node::nodedbg_handlesQueueOffset", handle, err2);
-  head = LookupConstant(target, "node::nodedbg_listHeadNodeOffset", head, err2);
+  queue = LookupConstant(target, "node::nodedbg_class__Environment__handleWrapQueue", queue, err2);
+  head = LookupConstant(target, "node::nodedbg_class__HandleWrapQueue__headOffset", head, err2);
+  next = LookupConstant(target, "node::nodedbg_class__HandleWrapQueue__nextOffset", next, err2);
+  node = LookupConstant(target, "node::nodedbg_class__HandleWrap__node", node, err2);
   persistant_handle = LookupConstant(target, "node::nodedbg_class__BaseObject__persistant_handle", persistant_handle, err2);
-  val = LookupConstant(target, "v8dbg_class_Cell__value__Object", val, err2);
-
-  std::cout << std::hex << env << std::endl;
-  std::cout << std::hex << handle << std::endl;
-  std::cout << std::hex << head << std::endl;
-  std::cout << std::hex << next << std::endl;
-  std::cout << std::hex << val << std::endl;
 
   // uint8_t *buffer = new uint8_t[size];
   // XXX Ozadia time
@@ -407,33 +402,27 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
   }
 
   int activeHandles = 0;
-  uint64_t currentHandleWrap = env;  // + handle + head + next;
-  std::cout << "env: " << std::hex << currentHandleWrap << std::endl;
-  currentHandleWrap += handle;
-  std::cout << "queue: " << std::hex << currentHandleWrap << std::endl;
-  currentHandleWrap += head;
-  std::cout << "head: " << std::hex << currentHandleWrap << std::endl;
-  currentHandleWrap += next;
-  std::cout << "next: " << std::hex << currentHandleWrap << std::endl;
-  std::cout << "- -------------------- -" << std::endl;
+  uint64_t currentHandleWrap = env;
+  currentHandleWrap += queue;  // env.handle_wrap_queue_
+  currentHandleWrap += head;  // env.handle_wrap_queue_.head_
+  currentHandleWrap += next;  // env.handle_wrap_queue_.head_.next_
+  process.ReadMemory(currentHandleWrap, &buffer, size, sberr);
+  currentHandleWrap = buffer;
   // TODO needs a stop condition
   while(go) {
-    // TODO check this -3
     addr_t myMemory = currentHandleWrap;
-    std::cout << "a: " << std::hex << currentHandleWrap << std::endl;
-    std::cout << "next: " << std::hex << myMemory << std::endl;
-    myMemory  = myMemory - (3 * 64);
-    std::cout << "next(fixed): " << std::hex << myMemory << std::endl;
-    myMemory += val;
-    std::cout << "val: " << std::hex << myMemory << std::endl;
+    myMemory  = myMemory - node;
+    myMemory += persistant_handle;
+    // TODO same checks from node::getActiveHandles
     if(myMemory == 0) {
       continue;
     }
 
     process.ReadMemory(myMemory, &buffer, size, sberr);
+    myMemory = buffer;
+    process.ReadMemory(myMemory, &buffer, size, sberr);
     // TODO needs a better check
     if(sberr.Fail()) {
-      std::cout << "That's the end";
       break;
     }
 
@@ -448,7 +437,9 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
     activeHandles++;
     resultMsg << res.c_str() << std::endl;
 
-    currentHandleWrap += next;
+    currentHandleWrap += next;  // env.handle_wrap_queue_.head_.next_->next_->(...)->next_
+    process.ReadMemory(currentHandleWrap, &buffer, size, sberr);
+    currentHandleWrap = buffer;
   }
   result.Printf("Active handles: %d\n\n", activeHandles);
   result.Printf("%s", resultMsg.str().c_str());
@@ -460,13 +451,7 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
   SBTarget target = d.GetSelectedTarget();
   SBProcess process = target.GetProcess();
   SBThread thread = process.GetSelectedThread();
-  SBExpressionOptions options;
-  uint32_t framesCount;
-  SBValue value, handleWorkQueue;
-  SBFrame currentFrame, envFrame;
-  std::string partialCmd;
-  std::string full_cmd;
-  std::ostringstream out;
+  SBError sberr;
   std::ostringstream resultMsg;
   v8::Value::InspectOptions inspect_options;
   inspect_options.detailed = true;
@@ -474,6 +459,24 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
   llv8.Load(target);
 
   int size = 8;  // TODO size is arch-dependent
+  int64_t envPtr = 0;
+  uint64_t env = 0;
+  int64_t queue = 0;
+  int64_t head = 0;
+  int64_t next = 0;
+  int64_t node = 0;
+  int64_t persistant_handle = 0;
+  v8::Error err2;
+
+  envPtr = LookupConstant(target, "node::nodedbg_currentEnvironment", envPtr, err2);
+  process.ReadMemory(envPtr, &env, size, sberr);
+
+  queue = LookupConstant(target, "node::nodedbg_class__Environment__reqWrapQueue", queue, err2);
+  head = LookupConstant(target, "node::nodedbg_class__ReqWrapQueue__headOffset", head, err2);
+  next = LookupConstant(target, "node::nodedbg_class__ReqWrapQueue__nextOffset", next, err2);
+  node = LookupConstant(target, "node::nodedbg_class__ReqWrap__node", node, err2);
+  persistant_handle = LookupConstant(target, "node::nodedbg_class__BaseObject__persistant_handle", persistant_handle, err2);
+
   // uint8_t *buffer = new uint8_t[size];
   // XXX Ozadia time
   uint64_t buffer = 0;
@@ -483,53 +486,25 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
     return false;
   }
 
-  framesCount = thread.GetNumFrames();
-
-  currentFrame = thread.GetSelectedFrame();
-
-  for(int i = framesCount; i >= 0; i--) {
-    envFrame = thread.GetFrameAtIndex(i);
-    value = envFrame.FindVariable("env");  // TODO looks like there was some changes on node code
-    if (value.GetError().Fail()) {
-      SBStream desc;
-      if (value.GetError().GetDescription(desc)) {
-        // std::cout << "Error: " << desc.GetData() << std::endl;
-      }
-      continue;
-      // result.SetStatus(eReturnStatusFailed);
-    }
-    break;
-  }
-
-  if(value.GetError().Fail()) {
-    return false;
-  }
-
-  std::string currentIteration = "env->req_wrap_queue_.head_.next_";
-  // FIXME sometimes Enviroment is loaded from the wrong place
-  out << "Environment *env; env=(Environment *)";
-  out << value.GetLoadAddress() << ";";
-  out << "AsyncWrap *wrap = (AsyncWrap *)";
-  partialCmd = out.str();
   int activeHandles = 0;
+  uint64_t currentHandleWrap = env;
+  currentHandleWrap += queue;  // env.handle_wrap_queue_
+  currentHandleWrap += head;  // env.handle_wrap_queue_.head_
+  currentHandleWrap += next;  // env.handle_wrap_queue_.head_.next_
+  process.ReadMemory(currentHandleWrap, &buffer, size, sberr);
+  currentHandleWrap = buffer;
   // TODO needs a stop condition
   while(go) {
-    out.str("");
-    out.clear();
-    // TODO check this -3
-    out << partialCmd << "(" << currentIteration << " - 3); wrap->persistent_handle_.val_;";
-    handleWorkQueue = target.EvaluateExpression(out.str().c_str(), options);
-    if(handleWorkQueue.GetError().Fail()) {
-      // TODO better message;
-      result.SetError("Failed to evaluate expression");
-      return false;
-    }
-    addr_t myMemory = handleWorkQueue.GetValueAsUnsigned();
+    addr_t myMemory = currentHandleWrap;
+    myMemory  = myMemory - node;
+    myMemory += persistant_handle;
+    // TODO same checks from node::getActiveHandles
     if(myMemory == 0) {
       continue;
     }
 
-    SBError sberr;
+    process.ReadMemory(myMemory, &buffer, size, sberr);
+    myMemory = buffer;
     process.ReadMemory(myMemory, &buffer, size, sberr);
     // TODO needs a better check
     if(sberr.Fail()) {
@@ -547,12 +522,11 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
     activeHandles++;
     resultMsg << res.c_str() << std::endl;
 
-    out.str("");
-    out.clear();
-    out << currentIteration << "->next_";
-    currentIteration = out.str();
+    currentHandleWrap += next;  // env.handle_wrap_queue_.head_.next_->next_->(...)->next_
+    process.ReadMemory(currentHandleWrap, &buffer, size, sberr);
+    currentHandleWrap = buffer;
   }
-  result.Printf("Active requests: %d\n\n", activeHandles);
+  result.Printf("Active handles: %d\n\n", activeHandles);
   result.Printf("%s", resultMsg.str().c_str());
   return true;
 }
