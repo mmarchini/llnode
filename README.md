@@ -207,6 +207,11 @@ The following subcommands are supported:
                           * -n, --name  name     - all properties with the specified name
                           * -s, --string string  - all properties that refer to the specified JavaScript string value
 
+<!--- TODO fix indentation for the other commands --->
+      getactivehandles  -- *EXPERIMENTAL* Equivalent to running process._getActiveHandles. This command is still being
+                           developed and for now it only works building node from source.
+      getactiverequests -- *EXPERIMENTAL* Equivalent to running process._getActiveRequests. This command is still being
+                           developed and for now it only works building node from source.
       inspect         -- Print detailed description and contents of the JavaScript value.
 
                          Possible flags (all optional):

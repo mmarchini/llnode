@@ -4,11 +4,16 @@
 #include <string.h>
 
 #include <cinttypes>
+#include <sstream>
 
 #include <lldb/API/SBExpressionOptions.h>
 
+#include "src/llnode-module-inl.h"
+#include "src/llnode-module.h"
 #include "src/llnode.h"
 #include "src/llscan.h"
+#include "src/llv8-constants.h"
+#include "src/llv8-inl.h"
 #include "src/llv8.h"
 
 namespace llnode {
@@ -26,6 +31,15 @@ using lldb::SBThread;
 using lldb::SBValue;
 using lldb::eReturnStatusFailed;
 using lldb::eReturnStatusSuccessFinishResult;
+using lldb::SBProcess;
+using lldb::SBAddress;
+using lldb::SBSymbolContext;
+using lldb::SBSymbolContextList;
+using lldb::addr_t;
+using v8::constants::LookupConstant;
+
+// TODO (mmarchini) better name
+node::LLNode nodeMod;
 
 char** CommandBase::ParseInspectOptions(char** cmd,
                                         v8::Value::InspectOptions* options) {
@@ -310,6 +324,114 @@ void InitDebugMode() {
   v8::Error::SetDebugMode(is_debug_mode);
 }
 
+
+bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
+                                    SBCommandReturnObject& result) {
+  int activeHandles = 0;
+  SBTarget target = d.GetSelectedTarget();
+  SBProcess process = target.GetProcess();
+  SBThread thread = process.GetSelectedThread();
+  std::ostringstream resultMsg;
+  v8::Value::InspectOptions inspect_options;
+  inspect_options.detailed = true;
+
+  llv8_->Load(target);
+  nodeMod.Load(target);
+
+  if (!thread.IsValid()) {
+    result.SetError("No valid process, please start something\n");
+    return false;
+  }
+
+  node::Environment env = node::Environment::GetCurrent(&nodeMod);
+  if(env.raw() == -1) {
+    result.SetError("Node version doesn't support this command\n");
+    return false;
+  }
+  for (auto w : env.handle_wrap_queue()) {
+    if (w.persistent_addr() == 0) {
+      continue;
+    } else if (w.persistent_addr() == -1) {
+      result.SetError("Failed to load persistent handle");
+      activeHandles = -1;
+      break;
+    }
+
+    v8::JSObject v8_object(llv8_, w.v8_object_addr());
+    v8::Error err;
+    std::string res = v8_object.Inspect(&inspect_options, err);
+    if (err.Fail()) {
+      result.SetError("Failed to load object");
+      activeHandles = -1;
+      break;
+    }
+
+    activeHandles++;
+    resultMsg << res.c_str() << std::endl;
+  }
+  if(activeHandles == -1) {
+    return false;
+  }
+
+  result.Printf("Active handles: %d\n\n", activeHandles);
+  result.Printf("%s", resultMsg.str().c_str());
+  return true;
+}
+
+bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
+                                     SBCommandReturnObject& result) {
+  int activeRequests = 0;
+  SBTarget target = d.GetSelectedTarget();
+  SBProcess process = target.GetProcess();
+  SBThread thread = process.GetSelectedThread();
+  SBError sberr;
+  std::ostringstream resultMsg;
+  v8::Value::InspectOptions inspect_options;
+  inspect_options.detailed = true;
+
+  llv8_->Load(target);
+  nodeMod.Load(target);
+
+  if (!thread.IsValid()) {
+    result.SetError("No valid process, please start something\n");
+    return false;
+  }
+
+  node::Environment env = node::Environment::GetCurrent(&nodeMod);
+  if(env.raw() == -1) {
+    result.SetError("Node version doesn't support this command\n");
+    return false;
+  }
+  for (auto w : env.req_wrap_queue()) {
+    if (w.persistent_addr() == 0) {
+      continue;
+    } else if (w.persistent_addr() == -1) {
+      result.SetError("Failed to load persistent handle");
+      activeRequests = -1;
+      break;
+    }
+
+    v8::JSObject v8_object(llv8_, w.v8_object_addr());
+    v8::Error err;
+    std::string res = v8_object.Inspect(&inspect_options, err);
+    if (err.Fail()) {
+      result.SetError("Failed to load object");
+      activeRequests = -1;
+      break;
+    }
+
+    activeRequests++;
+    resultMsg << res.c_str() << std::endl;
+  }
+  if(activeRequests == -1) {
+    return false;
+  }
+
+  result.Printf("Active requests: %d\n\n", activeRequests);
+  result.Printf("%s", resultMsg.str().c_str());
+  return true;
+}
+
 }  // namespace llnode
 
 namespace lldb {
@@ -402,6 +524,14 @@ bool PluginInitialize(SBDebugger d) {
       " * -s, --string string  - all properties that refer to the specified "
       "JavaScript string value\n"
       "\n");
+
+  v8.AddCommand(
+      "getactivehandles", new llnode::GetActiveHandlesCmd(&llv8),
+      "Equivalent to running process._getActiveHandles.\n");
+
+  v8.AddCommand(
+      "getactiverequests", new llnode::GetActiveRequestsCmd(&llv8),
+      "Equivalent to running process._getActiveRequests.\n");
 
   return true;
 }

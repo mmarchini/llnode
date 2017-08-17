@@ -24,6 +24,16 @@ using lldb::addr_t;
 
 static std::string kConstantPrefix = "v8dbg_";
 
+
+// TODO (mmarchini) should be moved to constants.h
+bool IsDebugMode() {
+  char* var = getenv("LLNODE_DEBUG");
+  if (var == nullptr) return false;
+
+  return strlen(var) != 0;
+}
+
+
 void Module::Assign(SBTarget target, Common* common) {
   loaded_ = false;
   target_ = target;
@@ -45,9 +55,10 @@ T ReadSymbolFromTarget(SBTarget& target, SBAddress& start,
   return res;
 }
 
-static int64_t LookupConstant(SBTarget target, const char* name, int64_t def,
-                              Error& err) {
-  int64_t res = 0;
+// TODO (mmarchini) should be moved to constants.h
+int64_t LookupConstant(SBTarget target, const char* name, int64_t def,
+                       Error& err) {
+  int64_t res;
   res = def;
 
   SBSymbolContextList context_list = target.FindSymbols(name);
@@ -342,6 +353,9 @@ void Context::Load() {
       LoadConstant("class_Context__closure_index__int", "context_idx_closure");
   kPreviousIndex =
       LoadConstant("class_Context__previous_index__int", "context_idx_prev");
+  kNativeIndex =
+      LoadConstant("class_Context__native_index__int", "context_idx_native");
+  kEmbedderDataIndex = LoadConstant("context_idx_embedder_data", (int)5);
   kMinContextSlots = LoadConstant("class_Context__min_context_slots__int",
                                   "context_min_slots");
 }
@@ -597,6 +611,14 @@ void Types::Load() {
     if (common_->CheckLowestVersion(5, 2, 12))
       kJSAPIObjectType = kJSObjectType - 1;
   }
+}
+
+void Isolate::Load() {
+  kThreadLocalTopOffset = LoadConstant("isolate_threadlocaltop_offset");
+}
+
+void ThreadLocalTop::Load() {
+  kContextOffset = LoadConstant("threadlocaltop_context_offset");
 }
 
 }  // namespace constants

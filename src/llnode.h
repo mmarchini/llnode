@@ -40,6 +40,28 @@ class PrintCmd : public CommandBase {
   bool detailed_;
 };
 
+class GetActiveHandlesCmd : public CommandBase {
+ public:
+  GetActiveHandlesCmd(v8::LLV8* llv8) : llv8_(llv8) {}
+  ~GetActiveHandlesCmd() override {}
+
+  bool DoExecute(lldb::SBDebugger d, char** cmd,
+                 lldb::SBCommandReturnObject& result) override;
+ private:
+  v8::LLV8* llv8_;
+};
+
+class GetActiveRequestsCmd : public CommandBase {
+ public:
+  GetActiveRequestsCmd(v8::LLV8* llv8) : llv8_(llv8) {}
+  ~GetActiveRequestsCmd() override {}
+
+  bool DoExecute(lldb::SBDebugger d, char** cmd,
+                 lldb::SBCommandReturnObject& result) override;
+ private:
+  v8::LLV8* llv8_;
+};
+
 class ListCmd : public CommandBase {
  public:
   ListCmd(v8::LLV8* llv8) : llv8_(llv8) {}

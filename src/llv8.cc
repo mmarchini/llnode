@@ -56,6 +56,8 @@ void LLV8::Load(SBTarget target) {
   name_dictionary.Assign(target, &common);
   frame.Assign(target, &common);
   types.Assign(target, &common);
+  isolate.Assign(target, &common);
+  thread_local_top.Assign(target, &common);
 }
 
 bool Error::is_debug_mode = false;
