@@ -11,8 +11,8 @@
 
 #include "src/llnode.h"
 #include "src/llscan.h"
-#include "src/llv8.h"
 #include "src/llv8-constants.h"
+#include "src/llv8.h"
 
 namespace llnode {
 
@@ -309,7 +309,7 @@ bool ListCmd::DoExecute(SBDebugger d, char** cmd,
 }
 
 bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
-                            SBCommandReturnObject& result) {
+                                    SBCommandReturnObject& result) {
   SBTarget target = d.GetSelectedTarget();
   SBProcess process = target.GetProcess();
   SBThread thread = process.GetSelectedThread();
@@ -320,7 +320,7 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
 
   llv8.Load(target);
 
-  int size = 8;  // TODO size is arch-dependent
+  int size = 8;
   int64_t envPtr = 0;
   uint64_t env = 0;
   int64_t queue = 0;
@@ -333,16 +333,19 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
   envPtr = LookupConstant(target, "nodedbg_currentEnvironment", envPtr, err2);
   process.ReadMemory(envPtr, &env, size, sberr);
 
-  queue = LookupConstant(target, "nodedbg_class__Environment__handleWrapQueue", queue, err2);
-  head = LookupConstant(target, "nodedbg_class__HandleWrapQueue__headOffset", head, err2);
-  next = LookupConstant(target, "nodedbg_class__HandleWrapQueue__nextOffset", next, err2);
+  queue = LookupConstant(target, "nodedbg_class__Environment__handleWrapQueue",
+                         queue, err2);
+  head = LookupConstant(target, "nodedbg_class__HandleWrapQueue__headOffset",
+                        head, err2);
+  next = LookupConstant(target, "nodedbg_class__HandleWrapQueue__nextOffset",
+                        next, err2);
   node = LookupConstant(target, "nodedbg_class__HandleWrap__node", node, err2);
-  persistant_handle = LookupConstant(target, "nodedbg_class__BaseObject__persistant_handle", persistant_handle, err2);
+  persistant_handle =
+      LookupConstant(target, "nodedbg_class__BaseObject__persistant_handle",
+                     persistant_handle, err2);
 
-  // uint8_t *buffer = new uint8_t[size];
-  // XXX Ozadia time
   uint64_t buffer = 0;
-  bool go=true;
+  bool go = true;
   if (!thread.IsValid()) {
     result.SetError("No valid process, please start something\n");
     return false;
@@ -350,18 +353,18 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
 
   int activeHandles = 0;
   uint64_t currentNode = env;
-  currentNode += queue;  // env.handle_wrap_queue_
-  currentNode += head;  // env.handle_wrap_queue_.head_
-  currentNode += next;  // env.handle_wrap_queue_.head_.next_
+  currentNode += queue;  // XXX env.handle_wrap_queue_
+  currentNode += head;   // XXX env.handle_wrap_queue_.head_
+  currentNode += next;   // XXX env.handle_wrap_queue_.head_.next_
   process.ReadMemory(currentNode, &buffer, size, sberr);
   currentNode = buffer;
   // TODO needs a stop condition, currently it's being stopped by a break
-  while(go) {
+  while (go) {
     addr_t myMemory = currentNode;
-    myMemory  = myMemory - node;  // wrap
+    myMemory = myMemory - node;  // wrap
     myMemory += persistant_handle;
-    // w->persistent().IsEmpty()
-    if(myMemory == 0) {
+    // XXX w->persistent().IsEmpty()
+    if (myMemory == 0) {
       continue;
     }
 
@@ -369,7 +372,7 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
     myMemory = buffer;
     process.ReadMemory(myMemory, &buffer, size, sberr);
     // TODO needs a better check
-    if(sberr.Fail()) {
+    if (sberr.Fail()) {
       break;
     }
 
@@ -384,7 +387,8 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
     activeHandles++;
     resultMsg << res.c_str() << std::endl;
 
-    currentNode += next;  // env.handle_wrap_queue_.head_.next_->next_->(...)->next_
+    // XXX env.handle_wrap_queue_.head_.next_->next_->(...)->next_
+    currentNode += next;
     process.ReadMemory(currentNode, &buffer, size, sberr);
     currentNode = buffer;
   }
@@ -394,7 +398,7 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
 }
 
 bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
-                            SBCommandReturnObject& result) {
+                                     SBCommandReturnObject& result) {
   SBTarget target = d.GetSelectedTarget();
   SBProcess process = target.GetProcess();
   SBThread thread = process.GetSelectedThread();
@@ -405,7 +409,7 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
 
   llv8.Load(target);
 
-  int size = 8;  // TODO size is arch-dependent
+  int size = 8;
   int64_t envPtr = 0;
   uint64_t env = 0;
   int64_t queue = 0;
@@ -418,16 +422,19 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
   envPtr = LookupConstant(target, "nodedbg_currentEnvironment", envPtr, err2);
   process.ReadMemory(envPtr, &env, size, sberr);
 
-  queue = LookupConstant(target, "nodedbg_class__Environment__reqWrapQueue", queue, err2);
-  head = LookupConstant(target, "nodedbg_class__ReqWrapQueue__headOffset", head, err2);
-  next = LookupConstant(target, "nodedbg_class__ReqWrapQueue__nextOffset", next, err2);
+  queue = LookupConstant(target, "nodedbg_class__Environment__reqWrapQueue",
+                         queue, err2);
+  head = LookupConstant(target, "nodedbg_class__ReqWrapQueue__headOffset", head,
+                        err2);
+  next = LookupConstant(target, "nodedbg_class__ReqWrapQueue__nextOffset", next,
+                        err2);
   node = LookupConstant(target, "nodedbg_class__ReqWrap__node", node, err2);
-  persistant_handle = LookupConstant(target, "nodedbg_class__BaseObject__persistant_handle", persistant_handle, err2);
+  persistant_handle =
+      LookupConstant(target, "nodedbg_class__BaseObject__persistant_handle",
+                     persistant_handle, err2);
 
-  // uint8_t *buffer = new uint8_t[size];
-  // XXX Ozadia time
   uint64_t buffer = 0;
-  bool go=true;
+  bool go = true;
   if (!thread.IsValid()) {
     result.SetError("No valid process, please start something\n");
     return false;
@@ -435,18 +442,18 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
 
   int activeHandles = 0;
   uint64_t currentNode = env;
-  currentNode += queue;  // env.handle_wrap_queue_
-  currentNode += head;  // env.handle_wrap_queue_.head_
-  currentNode += next;  // env.handle_wrap_queue_.head_.next_
+  currentNode += queue;  // XXX env.handle_wrap_queue_
+  currentNode += head;   // XXX env.handle_wrap_queue_.head_
+  currentNode += next;   // XXX env.handle_wrap_queue_.head_.next_
   process.ReadMemory(currentNode, &buffer, size, sberr);
   currentNode = buffer;
   // TODO needs a stop condition
-  while(go) {
+  while (go) {
     addr_t myMemory = currentNode;
-    myMemory  = myMemory - node;
+    myMemory = myMemory - node;
     myMemory += persistant_handle;
-    // w->persistent().IsEmpty()
-    if(myMemory == 0) {
+    // XXX w->persistent().IsEmpty()
+    if (myMemory == 0) {
       continue;
     }
 
@@ -454,7 +461,7 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
     myMemory = buffer;
     process.ReadMemory(myMemory, &buffer, size, sberr);
     // TODO needs a better check
-    if(sberr.Fail()) {
+    if (sberr.Fail()) {
       break;
     }
 
@@ -469,7 +476,8 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
     activeHandles++;
     resultMsg << res.c_str() << std::endl;
 
-    currentNode += next;  // env.handle_wrap_queue_.head_.next_->next_->(...)->next_
+    // env.handle_wrap_queue_.head_.next_->next_->(...)->next_
+    currentNode += next;
     process.ReadMemory(currentNode, &buffer, size, sberr);
     currentNode = buffer;
   }

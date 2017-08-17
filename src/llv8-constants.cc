@@ -39,7 +39,7 @@ void Module::Assign(SBTarget target, Common* common) {
 
 
 int64_t LookupConstant(SBTarget target, const char* name, int64_t def,
-                              Error& err) {
+                       Error& err) {
   int64_t res;
 
   res = def;
