@@ -1,8 +1,8 @@
 #include <assert.h>
 
 #include <algorithm>
-#include <cinttypes>
 #include <algorithm>
+#include <cinttypes>
 
 #include "llv8-inl.h"
 #include "llv8.h"
@@ -90,8 +90,7 @@ double LLV8::LoadDouble(int64_t addr, Error& err) {
 std::string LLV8::LoadBytes(int64_t length, int64_t addr, Error& err) {
   uint8_t* buf = new uint8_t[length + 1];
   SBError sberr;
-  process_.ReadMemory(addr, buf,
-                      static_cast<size_t>(length), sberr);
+  process_.ReadMemory(addr, buf, static_cast<size_t>(length), sberr);
   if (sberr.Fail()) {
     err = Error::Failure("Failed to load V8 raw buffer");
     delete[] buf;
@@ -1111,9 +1110,9 @@ std::string JSArrayBuffer::Inspect(InspectOptions* options, Error& err) {
 
   char tmp[128];
   snprintf(tmp, sizeof(tmp),
-           "<ArrayBuffer: backingStore=0x%016" PRIx64 ", byteLength=%d",
-           data, byte_length);
-  
+           "<ArrayBuffer: backingStore=0x%016" PRIx64 ", byteLength=%d", data,
+           byte_length);
+
   std::string res;
   res += tmp;
   if (options->detailed) {
@@ -1155,8 +1154,8 @@ std::string JSArrayBufferView::Inspect(InspectOptions* options, Error& err) {
   int byte_length = static_cast<int>(length.GetValue());
   int byte_offset = static_cast<int>(off.GetValue());
   char tmp[128];
-  snprintf(tmp, sizeof(tmp),
-           "<ArrayBufferView: backingStore=0x%016" PRIx64 ", byteOffset=%d, byteLength=%d",
+  snprintf(tmp, sizeof(tmp), "<ArrayBufferView: backingStore=0x%016" PRIx64
+                             ", byteOffset=%d, byteLength=%d",
            data, byte_offset, byte_length);
 
   std::string res;

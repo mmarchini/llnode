@@ -405,7 +405,6 @@ class JSArrayBuffer : public HeapObject {
   inline bool WasNeutered(Error& err);
 
   std::string Inspect(InspectOptions* options, Error& err);
-  
 };
 
 class JSArrayBufferView : public HeapObject {
