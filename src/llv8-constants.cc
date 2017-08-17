@@ -38,7 +38,7 @@ void Module::Assign(SBTarget target, Common* common) {
 }
 
 
-static int64_t LookupConstant(SBTarget target, const char* name, int64_t def,
+int64_t LookupConstant(SBTarget target, const char* name, int64_t def,
                               Error& err) {
   int64_t res;
 
