@@ -3,9 +3,15 @@
 
 #include <lldb/API/LLDB.h>
 
+using lldb::SBTarget;
+
 namespace llnode {
 namespace v8 {
+class Error;
 namespace constants {
+
+int64_t LookupConstant(SBTarget target, const char* name, int64_t def,
+                              Error& err);
 
 // Forward declarations
 class Common;

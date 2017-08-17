@@ -4,12 +4,15 @@
 #include <string.h>
 
 #include <cinttypes>
+#include <iostream>
+#include <sstream>
 
 #include <lldb/API/SBExpressionOptions.h>
 
 #include "src/llnode.h"
 #include "src/llscan.h"
 #include "src/llv8.h"
+#include "src/llv8-constants.h"
 
 namespace llnode {
 
@@ -26,6 +29,12 @@ using lldb::SBThread;
 using lldb::SBValue;
 using lldb::eReturnStatusFailed;
 using lldb::eReturnStatusSuccessFinishResult;
+using lldb::SBProcess;
+using lldb::SBAddress;
+using lldb::SBSymbolContext;
+using lldb::SBSymbolContextList;
+using lldb::addr_t;
+using v8::constants::LookupConstant;
 
 v8::LLV8 llv8;
 
@@ -296,6 +305,176 @@ bool ListCmd::DoExecute(SBDebugger d, char** cmd,
   return true;
 }
 
+bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
+                            SBCommandReturnObject& result) {
+  SBTarget target = d.GetSelectedTarget();
+  SBProcess process = target.GetProcess();
+  SBThread thread = process.GetSelectedThread();
+  SBError sberr;
+  std::ostringstream resultMsg;
+  v8::Value::InspectOptions inspect_options;
+  inspect_options.detailed = true;
+
+  llv8.Load(target);
+
+  int size = 8;  // TODO size is arch-dependent
+  int64_t envPtr = 0;
+  uint64_t env = 0;
+  int64_t queue = 0;
+  int64_t head = 0;
+  int64_t next = 0;
+  int64_t node = 0;
+  int64_t persistant_handle = 0;
+  v8::Error err2;
+
+  envPtr = LookupConstant(target, "nodedbg_currentEnvironment", envPtr, err2);
+  process.ReadMemory(envPtr, &env, size, sberr);
+
+  queue = LookupConstant(target, "nodedbg_class__Environment__handleWrapQueue", queue, err2);
+  head = LookupConstant(target, "nodedbg_class__HandleWrapQueue__headOffset", head, err2);
+  next = LookupConstant(target, "nodedbg_class__HandleWrapQueue__nextOffset", next, err2);
+  node = LookupConstant(target, "nodedbg_class__HandleWrap__node", node, err2);
+  persistant_handle = LookupConstant(target, "nodedbg_class__BaseObject__persistant_handle", persistant_handle, err2);
+
+  // uint8_t *buffer = new uint8_t[size];
+  // XXX Ozadia time
+  uint64_t buffer = 0;
+  bool go=true;
+  if (!thread.IsValid()) {
+    result.SetError("No valid process, please start something\n");
+    return false;
+  }
+
+  int activeHandles = 0;
+  uint64_t currentNode = env;
+  currentNode += queue;  // env.handle_wrap_queue_
+  currentNode += head;  // env.handle_wrap_queue_.head_
+  currentNode += next;  // env.handle_wrap_queue_.head_.next_
+  process.ReadMemory(currentNode, &buffer, size, sberr);
+  currentNode = buffer;
+  // TODO needs a stop condition, currently it's being stopped by a break
+  while(go) {
+    addr_t myMemory = currentNode;
+    myMemory  = myMemory - node;  // wrap
+    myMemory += persistant_handle;
+    // w->persistent().IsEmpty()
+    if(myMemory == 0) {
+      continue;
+    }
+
+    process.ReadMemory(myMemory, &buffer, size, sberr);
+    myMemory = buffer;
+    process.ReadMemory(myMemory, &buffer, size, sberr);
+    // TODO needs a better check
+    if(sberr.Fail()) {
+      break;
+    }
+
+    v8::JSObject v8_object(&llv8, buffer);
+    v8::Error err;
+    std::string res = v8_object.Inspect(&inspect_options, err);
+    if (err.Fail()) {
+      // result.SetError("Failed to evaluate expression");
+      break;
+    }
+
+    activeHandles++;
+    resultMsg << res.c_str() << std::endl;
+
+    currentNode += next;  // env.handle_wrap_queue_.head_.next_->next_->(...)->next_
+    process.ReadMemory(currentNode, &buffer, size, sberr);
+    currentNode = buffer;
+  }
+  result.Printf("Active handles: %d\n\n", activeHandles);
+  result.Printf("%s", resultMsg.str().c_str());
+  return true;
+}
+
+bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
+                            SBCommandReturnObject& result) {
+  SBTarget target = d.GetSelectedTarget();
+  SBProcess process = target.GetProcess();
+  SBThread thread = process.GetSelectedThread();
+  SBError sberr;
+  std::ostringstream resultMsg;
+  v8::Value::InspectOptions inspect_options;
+  inspect_options.detailed = true;
+
+  llv8.Load(target);
+
+  int size = 8;  // TODO size is arch-dependent
+  int64_t envPtr = 0;
+  uint64_t env = 0;
+  int64_t queue = 0;
+  int64_t head = 0;
+  int64_t next = 0;
+  int64_t node = 0;
+  int64_t persistant_handle = 0;
+  v8::Error err2;
+
+  envPtr = LookupConstant(target, "nodedbg_currentEnvironment", envPtr, err2);
+  process.ReadMemory(envPtr, &env, size, sberr);
+
+  queue = LookupConstant(target, "nodedbg_class__Environment__reqWrapQueue", queue, err2);
+  head = LookupConstant(target, "nodedbg_class__ReqWrapQueue__headOffset", head, err2);
+  next = LookupConstant(target, "nodedbg_class__ReqWrapQueue__nextOffset", next, err2);
+  node = LookupConstant(target, "nodedbg_class__ReqWrap__node", node, err2);
+  persistant_handle = LookupConstant(target, "nodedbg_class__BaseObject__persistant_handle", persistant_handle, err2);
+
+  // uint8_t *buffer = new uint8_t[size];
+  // XXX Ozadia time
+  uint64_t buffer = 0;
+  bool go=true;
+  if (!thread.IsValid()) {
+    result.SetError("No valid process, please start something\n");
+    return false;
+  }
+
+  int activeHandles = 0;
+  uint64_t currentNode = env;
+  currentNode += queue;  // env.handle_wrap_queue_
+  currentNode += head;  // env.handle_wrap_queue_.head_
+  currentNode += next;  // env.handle_wrap_queue_.head_.next_
+  process.ReadMemory(currentNode, &buffer, size, sberr);
+  currentNode = buffer;
+  // TODO needs a stop condition
+  while(go) {
+    addr_t myMemory = currentNode;
+    myMemory  = myMemory - node;
+    myMemory += persistant_handle;
+    // w->persistent().IsEmpty()
+    if(myMemory == 0) {
+      continue;
+    }
+
+    process.ReadMemory(myMemory, &buffer, size, sberr);
+    myMemory = buffer;
+    process.ReadMemory(myMemory, &buffer, size, sberr);
+    // TODO needs a better check
+    if(sberr.Fail()) {
+      break;
+    }
+
+    v8::JSObject v8_object(&llv8, buffer);
+    v8::Error err;
+    std::string res = v8_object.Inspect(&inspect_options, err);
+    if (err.Fail()) {
+      // result.SetError("Failed to evaluate expression");
+      break;
+    }
+
+    activeHandles++;
+    resultMsg << res.c_str() << std::endl;
+
+    currentNode += next;  // env.handle_wrap_queue_.head_.next_->next_->(...)->next_
+    process.ReadMemory(currentNode, &buffer, size, sberr);
+    currentNode = buffer;
+  }
+  result.Printf("Active handles: %d\n\n", activeHandles);
+  result.Printf("%s", resultMsg.str().c_str());
+  return true;
+}
+
 }  // namespace llnode
 
 namespace lldb {
@@ -378,6 +557,18 @@ bool PluginInitialize(SBDebugger d) {
       " * -s, --string string  - all properties that refer to the specified "
       "JavaScript string value\n"
       "\n");
+
+  v8.AddCommand(
+      "getactivehandles", new llnode::GetActiveHandlesCmd(),
+      "*EXPERIMENTAL* Equivalent to running process._getActiveHandles. "
+      "This command is still being developed and for now it only works "
+      "building node from source.\n");
+
+  v8.AddCommand(
+      "getactiverequests", new llnode::GetActiveRequestsCmd(),
+      "*EXPERIMENTAL* Equivalent to running process._getActiveRequests. "
+      "This command is still being developed and for now it only works "
+      "building node from source.\n");
 
   return true;
 }

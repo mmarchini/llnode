@@ -219,42 +219,44 @@ Syntax: v8
 
 The following subcommands are supported:
 
-      bt              -- Show a backtrace with node.js JavaScript functions and their args. An optional argument is accepted; if
-                         that argument is a number, it specifies the number of frames to display. Otherwise all frames will be
-                         dumped.
+      bt                -- Show a backtrace with node.js JavaScript functions and their args. An optional argument is accepted; if
+                           that argument is a number, it specifies the number of frames to display. Otherwise all frames will be
+                           dumped.
 
-                         Syntax: v8 bt [number]
-      findjsinstances -- List all objects which share the specified map.
-                         Accepts the same options as `v8 inspect`
-      findjsobjects   -- List all object types and instance counts grouped by map and sorted by instance count.
-                         Requires `LLNODE_RANGESFILE` environment variable to be set to a file containing memory ranges for the
-                         core file being debugged.
-                         There are scripts for generating this file on Linux and Mac in the scripts directory of the llnode
-                         repository.
-      findrefs        -- Finds all the object properties which meet the search criteria.
-                         The default is to list all the object properties that reference the specified value.
-                         Flags:
+                           Syntax: v8 bt [number]
+      findjsinstances   -- List all objects which share the specified map.
+                           Accepts the same options as `v8 inspect`
+      findjsobjects     -- List all object types and instance counts grouped by map and sorted by instance count.
+                           Requires `LLNODE_RANGESFILE` environment variable to be set to a file containing memory ranges for the
+                           core file being debugged.
+                           There are scripts for generating this file on Linux and Mac in the scripts directory of the llnode
+                           repository.
+      findrefs          -- Finds all the object properties which meet the search criteria.
+                           The default is to list all the object properties that reference the specified value.
+                           Flags:
 
-                          * -v, --value expr     - all properties that refer to the specified JavaScript object (default)
-                          * -n, --name  name     - all properties with the specified name
-                          * -s, --string string  - all properties that refer to the specified JavaScript string value
-                          * --array-length num   - print maximum of `num` elements in array
+                            * -v, --value expr     - all properties that refer to the specified JavaScript object (default)
+                            * -n, --name  name     - all properties with the specified name
+                            * -s, --string string  - all properties that refer to the specified JavaScript string value
+                            * --array-length num   - print maximum of `num` elements in array
 
-      inspect         -- Print detailed description and contents of the JavaScript value.
+      getactivehandles  -- *EXPERIMENTAL* Equivalent to running process._getActiveHandles. This command is still being developed and for now it only works building node from source.
+      getactiverequests -- *EXPERIMENTAL* Equivalent to running process._getActiveRequests. This command is still being developed and for now it only works building node from source.
+      inspect           -- Print detailed description and contents of the JavaScript value.
 
-                         Possible flags (all optional):
+                           Possible flags (all optional):
 
-                          * -F, --full-string    - print whole string without adding ellipsis
-                          * -m, --print-map      - print object's map address
-                          * -s, --print-source   - print source code for function objects
-                          * --string-length num  - print maximum of `num` characters in string
+                            * -F, --full-string    - print whole string without adding ellipsis
+                            * -m, --print-map      - print object's map address
+                            * -s, --print-source   - print source code for function objects
+                            * --string-length num  - print maximum of `num` characters in string
 
-                         Syntax: v8 inspect [flags] expr
-      nodeinfo        -- Print information about Node.js
-      print           -- Print short description of the JavaScript value.
+                           Syntax: v8 inspect [flags] expr
+      nodeinfo          -- Print information about Node.js
+      print             -- Print short description of the JavaScript value.
 
-                         Syntax: v8 print expr
-      source          -- Source code information
+                           Syntax: v8 print expr
+      source            -- Source code information
 
 For more help on any particular subcommand, type 'help <command> <subcommand>'.
 ```
