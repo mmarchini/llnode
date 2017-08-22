@@ -13,6 +13,7 @@
 #include "src/llscan.h"
 #include "src/llv8-constants.h"
 #include "src/llv8.h"
+#include "src/llv8-inl.h"
 
 namespace llnode {
 
@@ -321,15 +322,45 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
   int size = 8;
   int64_t envPtr = 0;
   uint64_t env = 0;
+  uint64_t isolate = 0;
+  size_t isolate_thread_offset = 0;
+  uint64_t isolate_thread = 0;
+  size_t thread_context_offset = 0;
+  uint64_t thread_context_ptr = 0;
+  uint64_t thread_context = 0;
+  int64_t contextEmbedderDataIndex = 0;
+  int64_t nodeContextEmbedderDataIndex = 0;
   int64_t queue = 0;
   int64_t head = 0;
   int64_t next = 0;
   int64_t node = 0;
-  int64_t persistant_handle = 0;
+  int64_t persistent_handle = 0;
   v8::Error err2;
 
-  envPtr = LookupConstant(target, "nodedbg_currentEnvironment", envPtr, err2);
-  process.ReadMemory(envPtr, &env, size, sberr);
+  nodeContextEmbedderDataIndex = LookupConstant(target, "nodedbg_environment_context_idx_embedder_data", nodeContextEmbedderDataIndex, err2);
+  contextEmbedderDataIndex = LookupConstant(target, "v8dbg_context_idx_embedder_data", contextEmbedderDataIndex, err2);
+
+  isolate = LookupConstant(target, "node::node_isolate", isolate, err2);
+  isolate = LookupConstant(target, "node::node_isolate", isolate, err2);
+
+  isolate_thread_offset = LookupConstant(target, "v8dbg_isolate_threadlocaltop_offset", isolate_thread_offset, err2);
+  isolate_thread = isolate + isolate_thread_offset;
+
+  thread_context_offset = LookupConstant(target, "v8dbg_threadlocaltop_context_offset", thread_context_offset, err2);
+  thread_context_ptr = isolate_thread + thread_context_offset;
+  process.ReadMemory(thread_context_ptr, &thread_context, size, sberr);
+  v8::Context ctx(&llv8, thread_context);
+  v8::Error err;
+  v8::Value native = ctx.Native(err);
+  v8::FixedArray native_arr = v8::FixedArray(native);
+  v8::FixedArray embed = native_arr.Get<v8::FixedArray>(contextEmbedderDataIndex, err);
+  v8::Smi penv = embed.Get<v8::Smi>(nodeContextEmbedderDataIndex, err);  // Why 32?
+  if (err.Fail()) {
+    // result.SetError("Failed to evaluate expression");
+    return false;
+  } else {
+    env = penv.raw();
+  }
 
   queue = LookupConstant(target, "nodedbg_class__Environment__handleWrapQueue",
                          queue, err2);
@@ -338,9 +369,9 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
   next = LookupConstant(target, "nodedbg_class__HandleWrapQueue__nextOffset",
                         next, err2);
   node = LookupConstant(target, "nodedbg_class__HandleWrap__node", node, err2);
-  persistant_handle =
-      LookupConstant(target, "nodedbg_class__BaseObject__persistant_handle",
-                     persistant_handle, err2);
+  persistent_handle =
+      LookupConstant(target, "nodedbg_class__BaseObject__persistent_handle",
+                     persistent_handle, err2);
 
   uint64_t buffer = 0;
   bool go = true;
@@ -360,7 +391,7 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
   while (go) {
     addr_t myMemory = currentNode;
     myMemory = myMemory - node;  // wrap
-    myMemory += persistant_handle;
+    myMemory += persistent_handle;
     // XXX w->persistent().IsEmpty()
     if (myMemory == 0) {
       continue;
@@ -414,7 +445,7 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
   int64_t head = 0;
   int64_t next = 0;
   int64_t node = 0;
-  int64_t persistant_handle = 0;
+  int64_t persistent_handle = 0;
   v8::Error err2;
 
   envPtr = LookupConstant(target, "nodedbg_currentEnvironment", envPtr, err2);
@@ -427,9 +458,9 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
   next = LookupConstant(target, "nodedbg_class__ReqWrapQueue__nextOffset", next,
                         err2);
   node = LookupConstant(target, "nodedbg_class__ReqWrap__node", node, err2);
-  persistant_handle =
-      LookupConstant(target, "nodedbg_class__BaseObject__persistant_handle",
-                     persistant_handle, err2);
+  persistent_handle =
+      LookupConstant(target, "nodedbg_class__BaseObject__persistent_handle",
+                     persistent_handle, err2);
 
   uint64_t buffer = 0;
   bool go = true;
@@ -449,7 +480,7 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
   while (go) {
     addr_t myMemory = currentNode;
     myMemory = myMemory - node;
-    myMemory += persistant_handle;
+    myMemory += persistent_handle;
     // XXX w->persistent().IsEmpty()
     if (myMemory == 0) {
       continue;
