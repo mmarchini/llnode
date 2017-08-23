@@ -14,6 +14,7 @@
 #include "src/llv8-constants.h"
 #include "src/llv8.h"
 #include "src/llv8-inl.h"
+#include "src/llnode-module.h"
 
 namespace llnode {
 
@@ -38,6 +39,7 @@ using lldb::addr_t;
 using v8::constants::LookupConstant;
 
 v8::LLV8 llv8;
+node::LLNode nodeMod;
 
 char** CommandBase::ParseInspectOptions(char** cmd,
                                         v8::Value::InspectOptions* options) {
@@ -318,62 +320,8 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
   inspect_options.detailed = true;
 
   llv8.Load(target);
+  nodeMod.Load(target);
 
-  int size = 8;
-  int64_t envPtr = 0;
-  uint64_t env = 0;
-  uint64_t isolate = 0;
-  size_t isolate_thread_offset = 0;
-  uint64_t isolate_thread = 0;
-  size_t thread_context_offset = 0;
-  uint64_t thread_context_ptr = 0;
-  uint64_t thread_context = 0;
-  int64_t contextEmbedderDataIndex = 0;
-  int64_t nodeContextEmbedderDataIndex = 0;
-  int64_t queue = 0;
-  int64_t head = 0;
-  int64_t next = 0;
-  int64_t node = 0;
-  int64_t persistent_handle = 0;
-  v8::Error err2;
-
-  nodeContextEmbedderDataIndex = LookupConstant(target, "nodedbg_environment_context_idx_embedder_data", nodeContextEmbedderDataIndex, err2);
-  contextEmbedderDataIndex = LookupConstant(target, "v8dbg_context_idx_embedder_data", contextEmbedderDataIndex, err2);
-
-  isolate = LookupConstant(target, "node::node_isolate", isolate, err2);
-  isolate = LookupConstant(target, "node::node_isolate", isolate, err2);
-
-  isolate_thread_offset = LookupConstant(target, "v8dbg_isolate_threadlocaltop_offset", isolate_thread_offset, err2);
-  isolate_thread = isolate + isolate_thread_offset;
-
-  thread_context_offset = LookupConstant(target, "v8dbg_threadlocaltop_context_offset", thread_context_offset, err2);
-  thread_context_ptr = isolate_thread + thread_context_offset;
-  process.ReadMemory(thread_context_ptr, &thread_context, size, sberr);
-  v8::Context ctx(&llv8, thread_context);
-  v8::Error err;
-  v8::Value native = ctx.Native(err);
-  v8::FixedArray native_arr = v8::FixedArray(native);
-  v8::FixedArray embed = native_arr.Get<v8::FixedArray>(contextEmbedderDataIndex, err);
-  v8::Smi penv = embed.Get<v8::Smi>(nodeContextEmbedderDataIndex, err);  // Why 32?
-  if (err.Fail()) {
-    // result.SetError("Failed to evaluate expression");
-    return false;
-  } else {
-    env = penv.raw();
-  }
-
-  queue = LookupConstant(target, "nodedbg_class__Environment__handleWrapQueue",
-                         queue, err2);
-  head = LookupConstant(target, "nodedbg_class__HandleWrapQueue__headOffset",
-                        head, err2);
-  next = LookupConstant(target, "nodedbg_class__HandleWrapQueue__nextOffset",
-                        next, err2);
-  node = LookupConstant(target, "nodedbg_class__HandleWrap__node", node, err2);
-  persistent_handle =
-      LookupConstant(target, "nodedbg_class__BaseObject__persistent_handle",
-                     persistent_handle, err2);
-
-  uint64_t buffer = 0;
   bool go = true;
   if (!thread.IsValid()) {
     result.SetError("No valid process, please start something\n");
@@ -381,31 +329,30 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
   }
 
   int activeHandles = 0;
-  uint64_t currentNode = env;
-  currentNode += queue;  // XXX env.handle_wrap_queue_
-  currentNode += head;   // XXX env.handle_wrap_queue_.head_
-  currentNode += next;   // XXX env.handle_wrap_queue_.head_.next_
-  process.ReadMemory(currentNode, &buffer, size, sberr);
-  currentNode = buffer;
+  uint64_t currentNode = nodeMod.env()->kCurrentEnvironment;
+  std::cout << "Eternal Env: " << currentNode << std::endl;
+  currentNode += nodeMod.env()->kHandleWrapQueueOffset;  // XXX env.handle_wrap_queue_
+  currentNode += nodeMod.handle_wrap_queue()->kHeadOffset;   // XXX env.handle_wrap_queue_.head_
+  currentNode += nodeMod.handle_wrap_queue()->kNextOffset;   // XXX env.handle_wrap_queue_.head_.next_
+  currentNode = process.ReadPointerFromMemory(currentNode, sberr);
   // TODO needs a stop condition, currently it's being stopped by a break
   while (go) {
-    addr_t myMemory = currentNode;
-    myMemory = myMemory - node;  // wrap
-    myMemory += persistent_handle;
+    addr_t wrap = currentNode - nodeMod.handle_wrap()->kListNodeOffset;
+    addr_t persistentHandlePtr = wrap + nodeMod.base_object()->kPersistentHandleOffset;
+
     // XXX w->persistent().IsEmpty()
-    if (myMemory == 0) {
+    if (persistentHandlePtr == 0) {
       continue;
     }
 
-    process.ReadMemory(myMemory, &buffer, size, sberr);
-    myMemory = buffer;
-    process.ReadMemory(myMemory, &buffer, size, sberr);
+    addr_t persistentHandle = process.ReadPointerFromMemory(persistentHandlePtr, sberr);
+    addr_t obj = process.ReadPointerFromMemory(persistentHandle, sberr);
     // TODO needs a better check
     if (sberr.Fail()) {
       break;
     }
 
-    v8::JSObject v8_object(&llv8, buffer);
+    v8::JSObject v8_object(&llv8, obj);
     v8::Error err;
     std::string res = v8_object.Inspect(&inspect_options, err);
     if (err.Fail()) {
@@ -417,9 +364,8 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
     resultMsg << res.c_str() << std::endl;
 
     // XXX env.handle_wrap_queue_.head_.next_->next_->(...)->next_
-    currentNode += next;
-    process.ReadMemory(currentNode, &buffer, size, sberr);
-    currentNode = buffer;
+    currentNode += nodeMod.handle_wrap_queue()->kNextOffset;
+    currentNode = process.ReadPointerFromMemory(currentNode, sberr);
   }
   result.Printf("Active handles: %d\n\n", activeHandles);
   result.Printf("%s", resultMsg.str().c_str());

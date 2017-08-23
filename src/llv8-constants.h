@@ -12,7 +12,7 @@ namespace constants {
 
 int64_t LookupConstant(SBTarget target, const char* name, int64_t def,
                        Error& err);
-
+bool IsDebugMode();
 // Forward declarations
 class Common;
 

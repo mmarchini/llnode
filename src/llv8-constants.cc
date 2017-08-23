@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include <string>
+#include <iostream>
 
 #include <lldb/API/SBExpressionOptions.h>
 
@@ -23,7 +24,7 @@ using lldb::addr_t;
 
 static std::string kConstantPrefix = "v8dbg_";
 
-static bool IsDebugMode() {
+bool IsDebugMode() {
   char* var = getenv("LLNODE_DEBUG");
   if (var == nullptr) return false;
 
@@ -41,7 +42,6 @@ void Module::Assign(SBTarget target, Common* common) {
 int64_t LookupConstant(SBTarget target, const char* name, int64_t def,
                        Error& err) {
   int64_t res;
-
   res = def;
 
   SBSymbolContextList context_list = target.FindSymbols(name);
