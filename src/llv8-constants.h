@@ -220,6 +220,7 @@ class Context : public Module {
   int64_t kGlobalObjectIndex;
   int64_t kPreviousIndex;
   int64_t kNativeIndex;
+  int64_t kEmbedderDataIndex;
   int64_t kMinContextSlots;
 
  protected:
@@ -480,6 +481,24 @@ class Types : public Module {
 
  protected:
   void Load();
+};
+
+class Isolate : public Module {
+  public:
+    MODULE_DEFAULT_METHODS(Isolate);
+    int64_t kThreadLocalTopOffset;
+
+  protected:
+   void Load();
+};
+
+class ThreadLocalTop : public Module {
+  public:
+    MODULE_DEFAULT_METHODS(ThreadLocalTop);
+    int64_t kContextOffset;
+
+  protected:
+   void Load();
 };
 
 #undef MODULE_DEFAULT_METHODS

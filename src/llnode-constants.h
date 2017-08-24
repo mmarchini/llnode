@@ -30,9 +30,11 @@ namespace constants {
    public:
     MODULE_DEFAULT_METHODS(Environment);
 
-    addr_t kCurrentEnvironment;
+    int64_t kIsolate;
     int64_t kReqWrapQueueOffset;
     int64_t kHandleWrapQueueOffset;
+    int64_t kEnvContextEmbedderDataIndex;
+    addr_t kCurrentEnvironment;
 
    protected:
     void Load();

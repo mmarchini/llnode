@@ -330,7 +330,20 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
 
   int activeHandles = 0;
   uint64_t currentNode = nodeMod.env()->kCurrentEnvironment;
-  std::cout << "Eternal Env: " << currentNode << std::endl;
+  std::cout << currentNode << std::endl;
+  std::cout << "req" << std::endl;
+  std::cout << nodeMod.env()->kReqWrapQueueOffset << std::endl;
+  std::cout << nodeMod.req_wrap_queue()->kHeadOffset << std::endl;
+  std::cout << nodeMod.req_wrap_queue()->kNextOffset << std::endl;
+  std::cout << nodeMod.req_wrap()->kListNodeOffset << std::endl;
+  std::cout << "handle" << std::endl;
+  std::cout << nodeMod.env()->kHandleWrapQueueOffset << std::endl;
+  std::cout << nodeMod.handle_wrap_queue()->kHeadOffset << std::endl;
+  std::cout << nodeMod.handle_wrap_queue()->kNextOffset << std::endl;
+  std::cout << nodeMod.handle_wrap()->kListNodeOffset << std::endl;
+  std::cout << "base" << std::endl;
+  std::cout << nodeMod.base_object()->kPersistentHandleOffset << std::endl;
+
   currentNode += nodeMod.env()->kHandleWrapQueueOffset;  // XXX env.handle_wrap_queue_
   currentNode += nodeMod.handle_wrap_queue()->kHeadOffset;   // XXX env.handle_wrap_queue_.head_
   currentNode += nodeMod.handle_wrap_queue()->kNextOffset;   // XXX env.handle_wrap_queue_.head_.next_

@@ -20,12 +20,12 @@ namespace node {
 namespace constants {
   v8::LLV8 llv8;
 
-// std::string NodeModule::kConstantPrefix
-
 void Environment::Load() {
+  kIsolate = LoadRawConstant("node::node_isolate");
+  kReqWrapQueueOffset = LoadConstant("class__Environment__reqWrapQueue", 1256);
+  kHandleWrapQueueOffset = LoadConstant("class__Environment__handleWrapQueue", 1240);
+  kEnvContextEmbedderDataIndex = LoadConstant("environment_context_idx_embedder_data", 32);
   kCurrentEnvironment = LoadCurrentEnvironment();
-  kReqWrapQueueOffset = LoadConstant("class__Environment__reqWrapQueue");
-  kHandleWrapQueueOffset = LoadConstant("class__Environment__handleWrapQueue");
 }
 
 addr_t Environment::LoadCurrentEnvironment() {
@@ -43,41 +43,35 @@ addr_t Environment::DefaultLoadCurrentEnvironment() {
   SBProcess process = target_.GetProcess();
   SBError sberr;
   uint64_t env = -1;
-  uint64_t isolate = 0;
-  size_t isolate_thread_offset = 0;
   uint64_t isolate_thread = 0;
-  size_t thread_context_offset = 0;
   uint64_t thread_context_ptr = 0;
   uint64_t thread_context = 0;
-  v8::Error err2;
+  v8::Error err;
 
+  if (!(llv8.isolate()->kThreadLocalTopOffset != -1 && llv8.thread_local_top()->kContextOffset != -1)) {
+    // TODO warn user
+    return env;
+  }
 
-  isolate = LookupConstant(target_, "node::node_isolate", isolate, err2);
-  isolate = LookupConstant(target_, "node::node_isolate", isolate, err2);
+  isolate_thread = kIsolate + llv8.isolate()->kThreadLocalTopOffset;
 
-  isolate_thread_offset = LookupConstant(target_, "v8dbg_isolate_threadlocaltop_offset", isolate_thread_offset, err2);
-  isolate_thread = isolate + isolate_thread_offset;
-
-  thread_context_offset = LookupConstant(target_, "v8dbg_threadlocaltop_context_offset", thread_context_offset, err2);
-  thread_context_ptr = isolate_thread + thread_context_offset;
+  thread_context_ptr = isolate_thread + llv8.thread_local_top()->kContextOffset;
   thread_context = process.ReadPointerFromMemory(thread_context_ptr, sberr);
   v8::Context ctx(&llv8, thread_context);
-  v8::Error err;
   v8::Value native = ctx.Native(err);
   env = CurrentEnvironmentFromContext(native);
   return env;
 }
 
 addr_t Environment::CurrentEnvironmentFromContext(v8::Value context) {
+  llv8.Load(target_);
   v8::Error err;
-  int64_t contextEmbedderDataIndex = 0;
-  int64_t nodeContextEmbedderDataIndex = 0;
-  nodeContextEmbedderDataIndex = LookupConstant(target_, "nodedbg_environment_context_idx_embedder_data", nodeContextEmbedderDataIndex, err);
-  contextEmbedderDataIndex = LookupConstant(target_, "v8dbg_context_idx_embedder_data", contextEmbedderDataIndex, err);
+  std::cout << kEnvContextEmbedderDataIndex << std::endl;
+  std::cout << llv8.context()->kEmbedderDataIndex << std::endl;
 
   v8::FixedArray contextArray = v8::FixedArray(context);
-  v8::FixedArray embed = contextArray.Get<v8::FixedArray>(contextEmbedderDataIndex, err);
-  v8::Smi encodedEnv = embed.Get<v8::Smi>(nodeContextEmbedderDataIndex, err);
+  v8::FixedArray embed = contextArray.Get<v8::FixedArray>(llv8.context()->kEmbedderDataIndex, err);
+  v8::Smi encodedEnv = embed.Get<v8::Smi>(kEnvContextEmbedderDataIndex, err);
   if (err.Fail()) {
     return -1;
   } else {
@@ -106,8 +100,6 @@ addr_t Environment::FallbackLoadCurrentEnvironment() {
   uint32_t num_frames = thread.GetNumFrames();
   for (uint32_t i = 0; i < num_frames; i++) {
     SBFrame frame = thread.GetFrameAtIndex(i);
-    const char star = (frame == selected_frame ? '*' : ' ');
-    const uint64_t pc = frame.GetPC();
 
     if (!frame.GetSymbol().IsValid()) {
       v8::Error err;
@@ -128,6 +120,7 @@ addr_t Environment::FallbackLoadCurrentEnvironment() {
         if (err.Success()) {
           if(native.raw() == context.raw()) {
             found = true;
+            std::cout << native.raw() << std::endl;
             env = CurrentEnvironmentFromContext(native);
             break;
           }
@@ -152,25 +145,25 @@ addr_t Environment::FallbackLoadCurrentEnvironment() {
 
 
 void ReqWrapQueue::Load() {
-  kHeadOffset = LoadConstant("class__ReqWrapQueue__headOffset");
-  kNextOffset = LoadConstant("class__ReqWrapQueue__nextOffset");
+  kHeadOffset = LoadConstant("class__ReqWrapQueue__headOffset", (int64_t) 0);
+  kNextOffset = LoadConstant("class__ReqWrapQueue__nextOffset", (int64_t) 8);
 }
 
 void ReqWrap::Load() {
-  kListNodeOffset = LoadConstant("class__ReqWrap__node");
+  kListNodeOffset = LoadConstant("class__ReqWrap__node", (int64_t) 48);
 }
 
 void HandleWrapQueue::Load() {
-  kHeadOffset = LoadConstant("class__HandleWrapQueue__headOffset");
-  kNextOffset = LoadConstant("class__HandleWrapQueue__nextOffset");
+  kHeadOffset = LoadConstant("class__HandleWrapQueue__headOffset", (int64_t) 0);
+  kNextOffset = LoadConstant("class__HandleWrapQueue__nextOffset", (int64_t) 8);
 }
 
 void HandleWrap::Load() {
-  kListNodeOffset = LoadConstant("class__HandleWrap__node");
+  kListNodeOffset = LoadConstant("class__HandleWrap__node", (int64_t) 48);
 }
 
 void BaseObject::Load() {
-  kPersistentHandleOffset = LoadConstant("class__BaseObject__persistent_handle");
+  kPersistentHandleOffset = LoadConstant("class__BaseObject__persistent_handle", (int64_t) 8);
 }
 
 }

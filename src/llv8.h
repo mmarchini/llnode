@@ -5,6 +5,7 @@
 
 #include <lldb/API/LLDB.h>
 
+#include "src/constants.h"
 #include "src/llv8-constants.h"
 
 namespace llnode {
@@ -444,6 +445,10 @@ class LLV8 {
 
   void Load(lldb::SBTarget target);
 
+  constants::Isolate isolate;
+  constants::ThreadLocalTop thread_local_top;
+  constants::Context context;
+
  private:
   template <class T>
   inline T LoadValue(int64_t addr, Error& err);
@@ -470,7 +475,6 @@ class LLV8 {
   constants::SharedInfo shared_info;
   constants::Code code;
   constants::ScopeInfo scope_info;
-  constants::Context context;
   constants::Script script;
   constants::String string;
   constants::OneByteString one_byte_string;
@@ -520,6 +524,7 @@ class LLV8 {
   friend class CodeMap;
   friend class llnode::FindJSObjectsVisitor;
   friend class llnode::FindReferencesCmd;
+  friend class llnode::constants::ConstantsWrapper;
 };
 
 #undef V8_VALUE_DEFAULT_METHODS
