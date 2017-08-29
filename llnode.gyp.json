@@ -16,7 +16,10 @@
     ],
 
     "sources": [
+      "src/constants.cc",
       "src/llnode.cc",
+      "src/llnode-module.cc",
+      "src/llnode-constants.cc",
       "src/llv8.cc",
       "src/llv8-constants.cc",
       "src/llscan.cc",

@@ -12,7 +12,7 @@ namespace constants {
 
 int64_t LookupConstant(SBTarget target, const char* name, int64_t def,
                        Error& err);
-
+bool IsDebugMode();
 // Forward declarations
 class Common;
 
@@ -219,6 +219,8 @@ class Context : public Module {
   int64_t kClosureIndex;
   int64_t kGlobalObjectIndex;
   int64_t kPreviousIndex;
+  int64_t kNativeIndex;
+  int64_t kEmbedderDataIndex;
   int64_t kMinContextSlots;
 
  protected:
@@ -498,6 +500,24 @@ class Types : public Module {
   int64_t kJSDateType;
   int64_t kSharedFunctionInfoType;
   int64_t kScriptType;
+
+ protected:
+  void Load();
+};
+
+class Isolate : public Module {
+ public:
+  MODULE_DEFAULT_METHODS(Isolate);
+  int64_t kThreadLocalTopOffset;
+
+ protected:
+  void Load();
+};
+
+class ThreadLocalTop : public Module {
+ public:
+  MODULE_DEFAULT_METHODS(ThreadLocalTop);
+  int64_t kContextOffset;
 
  protected:
   void Load();
