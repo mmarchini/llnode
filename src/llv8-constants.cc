@@ -313,7 +313,7 @@ void Context::Load() {
       LoadConstant("class_Context__previous_index__int", "context_idx_prev");
   kNativeIndex =
       LoadConstant("class_Context__native_index__int", "context_idx_native");
-  kEmbedderDataIndex = LoadConstant("context_idx_embedder_data");
+  kEmbedderDataIndex = LoadConstant("context_idx_embedder_data", (int) 5);
   kMinContextSlots = LoadConstant("class_Context__min_context_slots__int",
                                   "context_min_slots");
 }

@@ -66,8 +66,6 @@ addr_t Environment::DefaultLoadCurrentEnvironment() {
 addr_t Environment::CurrentEnvironmentFromContext(v8::Value context) {
   llv8.Load(target_);
   v8::Error err;
-  std::cout << kEnvContextEmbedderDataIndex << std::endl;
-  std::cout << llv8.context()->kEmbedderDataIndex << std::endl;
 
   v8::FixedArray contextArray = v8::FixedArray(context);
   v8::FixedArray embed = contextArray.Get<v8::FixedArray>(llv8.context()->kEmbedderDataIndex, err);
@@ -120,7 +118,6 @@ addr_t Environment::FallbackLoadCurrentEnvironment() {
         if (err.Success()) {
           if(native.raw() == context.raw()) {
             found = true;
-            std::cout << native.raw() << std::endl;
             env = CurrentEnvironmentFromContext(native);
             break;
           }
@@ -132,10 +129,7 @@ addr_t Environment::FallbackLoadCurrentEnvironment() {
         }
       }
       if (found) {
-        std::cout << "That's my boy'o: " << env << std::endl;
         break;
-      } else {
-        std::cout << "OOPPS" << std::endl;
       }
     }
   }

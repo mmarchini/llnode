@@ -1,54 +1,39 @@
 #include "llnode-module.h"
+#include "llnode-module-inl.h"
 
 namespace llnode {
 namespace node {
 
-Environment::Environment(addr_t raw) : raw_(raw) {
+addr_t BaseObject::persistent_addr() {
+  lldb::SBError sberr;
 
+  addr_t persistentHandlePtr = raw_ + node_->base_object()->kPersistentHandleOffset;
+  addr_t persistentHandle = node_->process().ReadPointerFromMemory(persistentHandlePtr, sberr);
+  return persistentHandle;
 }
 
-std::list<HandleWrap> *HandleWrap::GetQueue(Environment *env) {
-  std::list<HandleWrap> *queue = new std::list<HandleWrap>();
-  uint64_t currentNode = env->raw();
-  SBError sberr;
+addr_t BaseObject::v8_object_addr() {
+  lldb::SBError sberr;
 
-  currentNode += node_->env()->kHandleWrapQueueOffset;  // XXX env.handle_wrap_queue_
-  currentNode += node_->handle_wrap_queue()->kHeadOffset;   // XXX env.handle_wrap_queue_.head_
-  currentNode += node_->handle_wrap_queue()->kNextOffset;   // XXX env.handle_wrap_queue_.head_.next_
-  currentNode = node_->process().ReadPointerFromMemory(currentNode, sberr);
+  addr_t persistentHandle = persistent_addr();
+  addr_t obj = node_->process().ReadPointerFromMemory(persistentHandle, sberr);
+  return obj;
+}
 
-  // TODO (mmarchini): add better stop condition
-  while (go) {
-    addr_t wrap = currentNode - node_->handle_wrap()->kListNodeOffset;
+HandleWrap HandleWrap::FromListNode(LLNode *node, addr_t list_node_addr) {
+  return HandleWrap(node, list_node_addr - node->handle_wrap()->kListNodeOffset);
+}
 
-    addr_t persistentHandlePtr = wrap + node_->base_object()->kPersistentHandleOffset;
+ReqWrap ReqWrap::FromListNode(LLNode *node, addr_t list_node_addr) {
+  return ReqWrap(node, list_node_addr - node->req_wrap()->kListNodeOffset);
+}
 
-    // XXX w->persistent().IsEmpty()
-    if (persistentHandlePtr == 0) {
-      continue;
-    }
+Queue<HandleWrap, constants::HandleWrapQueue> Environment::handle_wrap_queue() const {
+  return Queue<HandleWrap, constants::HandleWrapQueue>(node_, raw_ + node_->env()->kHandleWrapQueueOffset, node_->handle_wrap_queue());
+}
 
-    addr_t persistentHandle = node_->process().ReadPointerFromMemory(persistentHandlePtr, sberr);
-    addr_t obj = node_->process().ReadPointerFromMemory(persistentHandle, sberr);
-    // TODO needs a better check
-    if (sberr.Fail()) {
-      break;
-    }
-
-    v8::JSObject v8_object(&llv8, obj);
-    v8::Error err;
-    std::string res = v8_object.Inspect(&inspect_options, err);
-    if (err.Fail()) {
-      // result.SetError("Failed to evaluate expression");
-      break;
-    }
-
-    // XXX env.handle_wrap_queue_.head_.next_->next_->(...)->next_
-    currentNode += node_.handle_wrap_queue()->kNextOffset;
-    currentNode = process.ReadPointerFromMemory(currentNode, sberr);
-  }
-
-  return ;
+Queue<ReqWrap, constants::ReqWrapQueue> Environment::req_wrap_queue() const {
+  return Queue<ReqWrap, constants::ReqWrapQueue>(node_, raw_ + node_->env()->kReqWrapQueueOffset, node_->req_wrap_queue());
 }
 
 void LLNode::Load(SBTarget target) {

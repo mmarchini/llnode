@@ -322,64 +322,34 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
   llv8.Load(target);
   nodeMod.Load(target);
 
-  bool go = true;
   if (!thread.IsValid()) {
     result.SetError("No valid process, please start something\n");
     return false;
   }
 
   int activeHandles = 0;
-  uint64_t currentNode = nodeMod.env()->kCurrentEnvironment;
-  std::cout << currentNode << std::endl;
-  std::cout << "req" << std::endl;
-  std::cout << nodeMod.env()->kReqWrapQueueOffset << std::endl;
-  std::cout << nodeMod.req_wrap_queue()->kHeadOffset << std::endl;
-  std::cout << nodeMod.req_wrap_queue()->kNextOffset << std::endl;
-  std::cout << nodeMod.req_wrap()->kListNodeOffset << std::endl;
-  std::cout << "handle" << std::endl;
-  std::cout << nodeMod.env()->kHandleWrapQueueOffset << std::endl;
-  std::cout << nodeMod.handle_wrap_queue()->kHeadOffset << std::endl;
-  std::cout << nodeMod.handle_wrap_queue()->kNextOffset << std::endl;
-  std::cout << nodeMod.handle_wrap()->kListNodeOffset << std::endl;
-  std::cout << "base" << std::endl;
-  std::cout << nodeMod.base_object()->kPersistentHandleOffset << std::endl;
+  node::Environment env = node::Environment::GetCurrent(&nodeMod);
 
-  currentNode += nodeMod.env()->kHandleWrapQueueOffset;  // XXX env.handle_wrap_queue_
-  currentNode += nodeMod.handle_wrap_queue()->kHeadOffset;   // XXX env.handle_wrap_queue_.head_
-  currentNode += nodeMod.handle_wrap_queue()->kNextOffset;   // XXX env.handle_wrap_queue_.head_.next_
-  currentNode = process.ReadPointerFromMemory(currentNode, sberr);
-  // TODO needs a stop condition, currently it's being stopped by a break
-  while (go) {
-    addr_t wrap = currentNode - nodeMod.handle_wrap()->kListNodeOffset;
-    addr_t persistentHandlePtr = wrap + nodeMod.base_object()->kPersistentHandleOffset;
-
-    // XXX w->persistent().IsEmpty()
-    if (persistentHandlePtr == 0) {
+  for(auto w : env.handle_wrap_queue()) {
+    if (w.persistent_addr() == 0) {
       continue;
-    }
-
-    addr_t persistentHandle = process.ReadPointerFromMemory(persistentHandlePtr, sberr);
-    addr_t obj = process.ReadPointerFromMemory(persistentHandle, sberr);
-    // TODO needs a better check
-    if (sberr.Fail()) {
+    } else if (w.persistent_addr() == -1) {
+      result.SetError("Failed to load persistent handle");
       break;
     }
 
-    v8::JSObject v8_object(&llv8, obj);
+    v8::JSObject v8_object(&llv8, w.v8_object_addr());
     v8::Error err;
     std::string res = v8_object.Inspect(&inspect_options, err);
     if (err.Fail()) {
-      // result.SetError("Failed to evaluate expression");
+      result.SetError("Failed to load object");
       break;
     }
 
     activeHandles++;
     resultMsg << res.c_str() << std::endl;
-
-    // XXX env.handle_wrap_queue_.head_.next_->next_->(...)->next_
-    currentNode += nodeMod.handle_wrap_queue()->kNextOffset;
-    currentNode = process.ReadPointerFromMemory(currentNode, sberr);
   }
+
   result.Printf("Active handles: %d\n\n", activeHandles);
   result.Printf("%s", resultMsg.str().c_str());
   return true;
@@ -396,80 +366,37 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
   inspect_options.detailed = true;
 
   llv8.Load(target);
+  nodeMod.Load(target);
 
-  int size = 8;
-  int64_t envPtr = 0;
-  uint64_t env = 0;
-  int64_t queue = 0;
-  int64_t head = 0;
-  int64_t next = 0;
-  int64_t node = 0;
-  int64_t persistent_handle = 0;
-  v8::Error err2;
-
-  envPtr = LookupConstant(target, "nodedbg_currentEnvironment", envPtr, err2);
-  process.ReadMemory(envPtr, &env, size, sberr);
-
-  queue = LookupConstant(target, "nodedbg_class__Environment__reqWrapQueue",
-                         queue, err2);
-  head = LookupConstant(target, "nodedbg_class__ReqWrapQueue__headOffset", head,
-                        err2);
-  next = LookupConstant(target, "nodedbg_class__ReqWrapQueue__nextOffset", next,
-                        err2);
-  node = LookupConstant(target, "nodedbg_class__ReqWrap__node", node, err2);
-  persistent_handle =
-      LookupConstant(target, "nodedbg_class__BaseObject__persistent_handle",
-                     persistent_handle, err2);
-
-  uint64_t buffer = 0;
-  bool go = true;
   if (!thread.IsValid()) {
-    result.SetError("No valid process, please start something\n");
-    return false;
+   result.SetError("No valid process, please start something\n");
+   return false;
   }
 
   int activeHandles = 0;
-  uint64_t currentNode = env;
-  currentNode += queue;  // XXX env.handle_wrap_queue_
-  currentNode += head;   // XXX env.handle_wrap_queue_.head_
-  currentNode += next;   // XXX env.handle_wrap_queue_.head_.next_
-  process.ReadMemory(currentNode, &buffer, size, sberr);
-  currentNode = buffer;
-  // TODO needs a stop condition
-  while (go) {
-    addr_t myMemory = currentNode;
-    myMemory = myMemory - node;
-    myMemory += persistent_handle;
-    // XXX w->persistent().IsEmpty()
-    if (myMemory == 0) {
-      continue;
-    }
+  node::Environment env = node::Environment::GetCurrent(&nodeMod);
 
-    process.ReadMemory(myMemory, &buffer, size, sberr);
-    myMemory = buffer;
-    process.ReadMemory(myMemory, &buffer, size, sberr);
-    // TODO needs a better check
-    if (sberr.Fail()) {
-      break;
-    }
+  for(auto w : env.req_wrap_queue()) {
+   if (w.persistent_addr() == 0) {
+     continue;
+   } else if (w.persistent_addr() == -1) {
+     result.SetError("Failed to load persistent handle");
+     break;
+   }
 
-    v8::JSObject v8_object(&llv8, buffer);
-    v8::Error err;
-    std::string res = v8_object.Inspect(&inspect_options, err);
-    if (err.Fail()) {
-      // result.SetError("Failed to evaluate expression");
-      break;
-    }
+   v8::JSObject v8_object(&llv8, w.v8_object_addr());
+   v8::Error err;
+   std::string res = v8_object.Inspect(&inspect_options, err);
+   if (err.Fail()) {
+     result.SetError("Failed to load object");
+     break;
+   }
 
-    activeHandles++;
-    resultMsg << res.c_str() << std::endl;
-
-    // env.handle_wrap_queue_.head_.next_->next_->(...)->next_
-    currentNode += next;
-    process.ReadMemory(currentNode, &buffer, size, sberr);
-    currentNode = buffer;
+   activeHandles++;
+   resultMsg << res.c_str() << std::endl;
   }
-  result.Printf("Active handles: %d\n\n", activeHandles);
+
+  result.Printf("Active requests: %d\n\n", activeHandles);
   result.Printf("%s", resultMsg.str().c_str());
   return true;
 }

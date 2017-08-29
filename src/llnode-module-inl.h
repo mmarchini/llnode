@@ -1,19 +1,20 @@
+#ifndef SRC_LLNODE_MODULE_INL_H_
+#define SRC_LLNODE_MODULE_INL_H_
+
 #include "llnode-module.h"
 #include "llnode-constants.h"
 
 namespace llnode {
 namespace node {
 
-Environment *Environment::GetCurrent(LLNode *node) {
+Environment Environment::GetCurrent(LLNode *node) {
+  // TODO (mmarchini): maybe throw some warning here if env is not valid
   addr_t envAddr = node->env()->kCurrentEnvironment;
-  // TODO (mmarchini): maybe throw some warning here
-  if (envAddr == -1) {
-    return nullptr;
-  }
 
-  Environment *env = new Environment(envAddr);
-  return env;
+  return Environment(node, envAddr);
 }
 
 }
 }
+
+#endif
