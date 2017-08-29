@@ -484,21 +484,21 @@ class Types : public Module {
 };
 
 class Isolate : public Module {
-  public:
-    MODULE_DEFAULT_METHODS(Isolate);
-    int64_t kThreadLocalTopOffset;
+ public:
+  MODULE_DEFAULT_METHODS(Isolate);
+  int64_t kThreadLocalTopOffset;
 
-  protected:
-   void Load();
+ protected:
+  void Load();
 };
 
 class ThreadLocalTop : public Module {
-  public:
-    MODULE_DEFAULT_METHODS(ThreadLocalTop);
-    int64_t kContextOffset;
+ public:
+  MODULE_DEFAULT_METHODS(ThreadLocalTop);
+  int64_t kContextOffset;
 
-  protected:
-   void Load();
+ protected:
+  void Load();
 };
 
 #undef MODULE_DEFAULT_METHODS

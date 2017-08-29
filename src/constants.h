@@ -26,9 +26,6 @@ class ConstantsWrapper {
   lldb::SBTarget target_;
   bool loaded_;
 };
-
-
-
 }
 }
 

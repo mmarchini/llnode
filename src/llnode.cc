@@ -9,13 +9,13 @@
 
 #include <lldb/API/SBExpressionOptions.h>
 
+#include "src/llnode-module-inl.h"
+#include "src/llnode-module.h"
 #include "src/llnode.h"
 #include "src/llscan.h"
 #include "src/llv8-constants.h"
-#include "src/llv8.h"
 #include "src/llv8-inl.h"
-#include "src/llnode-module.h"
-#include "src/llnode-module-inl.h"
+#include "src/llv8.h"
 
 namespace llnode {
 
@@ -330,7 +330,7 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
 
   int activeHandles = 0;
   node::Environment env = node::Environment::GetCurrent(&nodeMod);
-  for(auto w : env.handle_wrap_queue()) {
+  for (auto w : env.handle_wrap_queue()) {
     if (w.persistent_addr() == 0) {
       continue;
     } else if (w.persistent_addr() == -1) {
@@ -369,31 +369,31 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
   nodeMod.Load(target);
 
   if (!thread.IsValid()) {
-   result.SetError("No valid process, please start something\n");
-   return false;
+    result.SetError("No valid process, please start something\n");
+    return false;
   }
 
   int activeHandles = 0;
   node::Environment env = node::Environment::GetCurrent(&nodeMod);
 
-  for(auto w : env.req_wrap_queue()) {
-   if (w.persistent_addr() == 0) {
-     continue;
-   } else if (w.persistent_addr() == -1) {
-     result.SetError("Failed to load persistent handle");
-     break;
-   }
+  for (auto w : env.req_wrap_queue()) {
+    if (w.persistent_addr() == 0) {
+      continue;
+    } else if (w.persistent_addr() == -1) {
+      result.SetError("Failed to load persistent handle");
+      break;
+    }
 
-   v8::JSObject v8_object(&llv8, w.v8_object_addr());
-   v8::Error err;
-   std::string res = v8_object.Inspect(&inspect_options, err);
-   if (err.Fail()) {
-     result.SetError("Failed to load object");
-     break;
-   }
+    v8::JSObject v8_object(&llv8, w.v8_object_addr());
+    v8::Error err;
+    std::string res = v8_object.Inspect(&inspect_options, err);
+    if (err.Fail()) {
+      result.SetError("Failed to load object");
+      break;
+    }
 
-   activeHandles++;
-   resultMsg << res.c_str() << std::endl;
+    activeHandles++;
+    resultMsg << res.c_str() << std::endl;
   }
 
   result.Printf("Active requests: %d\n\n", activeHandles);

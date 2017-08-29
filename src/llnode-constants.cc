@@ -3,9 +3,9 @@
 #include <lldb/API/LLDB.h>
 
 #include "llnode-constants.h"
-#include "llv8.h"
-#include "llv8-inl.h"
 #include "llv8-constants.h"
+#include "llv8-inl.h"
+#include "llv8.h"
 
 using lldb::SBProcess;
 using lldb::SBThread;
@@ -18,19 +18,21 @@ using v8::Error;
 using v8::constants::LookupConstant;
 namespace node {
 namespace constants {
-  v8::LLV8 llv8;
+v8::LLV8 llv8;
 
 void Environment::Load() {
   kIsolate = LoadRawConstant("node::node_isolate");
   kReqWrapQueueOffset = LoadConstant("class__Environment__reqWrapQueue", 1256);
-  kHandleWrapQueueOffset = LoadConstant("class__Environment__handleWrapQueue", 1240);
-  kEnvContextEmbedderDataIndex = LoadConstant("environment_context_idx_embedder_data", 32);
+  kHandleWrapQueueOffset =
+      LoadConstant("class__Environment__handleWrapQueue", 1240);
+  kEnvContextEmbedderDataIndex =
+      LoadConstant("environment_context_idx_embedder_data", 32);
   kCurrentEnvironment = LoadCurrentEnvironment();
 }
 
 addr_t Environment::LoadCurrentEnvironment() {
   addr_t currentEnvironment = DefaultLoadCurrentEnvironment();
-  if(currentEnvironment == -1) {
+  if (currentEnvironment == -1) {
     currentEnvironment = FallbackLoadCurrentEnvironment();
   }
 
@@ -48,7 +50,8 @@ addr_t Environment::DefaultLoadCurrentEnvironment() {
   uint64_t thread_context = 0;
   v8::Error err;
 
-  if (!(llv8.isolate()->kThreadLocalTopOffset != -1 && llv8.thread_local_top()->kContextOffset != -1)) {
+  if (!(llv8.isolate()->kThreadLocalTopOffset != -1 &&
+        llv8.thread_local_top()->kContextOffset != -1)) {
     // TODO warn user
     return env;
   }
@@ -68,7 +71,8 @@ addr_t Environment::CurrentEnvironmentFromContext(v8::Value context) {
   v8::Error err;
 
   v8::FixedArray contextArray = v8::FixedArray(context);
-  v8::FixedArray embed = contextArray.Get<v8::FixedArray>(llv8.context()->kEmbedderDataIndex, err);
+  v8::FixedArray embed =
+      contextArray.Get<v8::FixedArray>(llv8.context()->kEmbedderDataIndex, err);
   v8::Smi encodedEnv = embed.Get<v8::Smi>(kEnvContextEmbedderDataIndex, err);
   if (err.Fail()) {
     return -1;
@@ -112,11 +116,11 @@ addr_t Environment::FallbackLoadCurrentEnvironment() {
         continue;
       }
       bool found = false;
-      while(!found) {
+      while (!found) {
         v8::Context context(val);
         v8::Value native = context.Native(err);
         if (err.Success()) {
-          if(native.raw() == context.raw()) {
+          if (native.raw() == context.raw()) {
             found = true;
             env = CurrentEnvironmentFromContext(native);
             break;
@@ -139,27 +143,27 @@ addr_t Environment::FallbackLoadCurrentEnvironment() {
 
 
 void ReqWrapQueue::Load() {
-  kHeadOffset = LoadConstant("class__ReqWrapQueue__headOffset", (int64_t) 0);
-  kNextOffset = LoadConstant("class__ReqWrapQueue__nextOffset", (int64_t) 8);
+  kHeadOffset = LoadConstant("class__ReqWrapQueue__headOffset", (int64_t)0);
+  kNextOffset = LoadConstant("class__ReqWrapQueue__nextOffset", (int64_t)8);
 }
 
 void ReqWrap::Load() {
-  kListNodeOffset = LoadConstant("class__ReqWrap__node", (int64_t) 48);
+  kListNodeOffset = LoadConstant("class__ReqWrap__node", (int64_t)48);
 }
 
 void HandleWrapQueue::Load() {
-  kHeadOffset = LoadConstant("class__HandleWrapQueue__headOffset", (int64_t) 0);
-  kNextOffset = LoadConstant("class__HandleWrapQueue__nextOffset", (int64_t) 8);
+  kHeadOffset = LoadConstant("class__HandleWrapQueue__headOffset", (int64_t)0);
+  kNextOffset = LoadConstant("class__HandleWrapQueue__nextOffset", (int64_t)8);
 }
 
 void HandleWrap::Load() {
-  kListNodeOffset = LoadConstant("class__HandleWrap__node", (int64_t) 48);
+  kListNodeOffset = LoadConstant("class__HandleWrap__node", (int64_t)48);
 }
 
 void BaseObject::Load() {
-  kPersistentHandleOffset = LoadConstant("class__BaseObject__persistent_handle", (int64_t) 8);
+  kPersistentHandleOffset =
+      LoadConstant("class__BaseObject__persistent_handle", (int64_t)8);
 }
-
 }
 }
 }
