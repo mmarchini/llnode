@@ -1,10 +1,10 @@
 #ifndef SRC_LLNODE_MODULE_H_
 #define SRC_LLNODE_MODULE_H_
 
-#include "llnode-constants.h"
 #include <list>
-#include <iostream>
 #include <lldb/API/SBExpressionOptions.h>
+
+#include "llnode-constants.h"
 
 namespace llnode {
 namespace node {
@@ -12,7 +12,7 @@ namespace node {
 class LLNode;
 class HandleWrap;
 class ReqWrap;
-template<class T, class C>
+template<typename T, typename C>
 class Queue;
 
 // TODO (mmarchini): give a better name
@@ -91,28 +91,16 @@ class LLNode {
     lldb::SBProcess process_;
 };
 
-template<class T, class C>
+template<typename T, typename C>
 class Queue : public BaseNode {
   class Iterator : public BaseNode{
     public:
-      inline T operator*() const {
-        return T::FromListNode(node_, current_);
-      };
-      inline const Iterator operator++() {
-        lldb::SBError sberr;
-
-        addr_t current = current_ + constants_->kNextOffset;
-        current = node_->process().ReadPointerFromMemory(current, sberr);
-        current_ = current;
-        return Iterator(node_, current, constants_);
-      };
-      inline bool operator!=(const Iterator& that) const {
-        return current_ != that.current_;
-      };
+      inline T operator*() const;
+      inline const Iterator operator++();
+      inline bool operator!=(const Iterator& that) const;
 
 
-      Iterator(LLNode *node, addr_t current, C *constants) : BaseNode(node), current_(current), constants_(constants) {
-      };
+      inline Iterator(LLNode *node, addr_t current, C *constants) : BaseNode(node), current_(current), constants_(constants) {};
 
     public:
       addr_t current_;
@@ -123,18 +111,8 @@ class Queue : public BaseNode {
 
     inline Queue(LLNode *node, addr_t raw, C *constants) : BaseNode(node), raw_(raw), constants_(constants) {};
 
-    inline Iterator begin() const {
-      lldb::SBError sberr;
-      addr_t currentNode = raw_ + constants_->kHeadOffset;
-
-      currentNode = currentNode + constants_->kNextOffset;
-      currentNode = node_->process().ReadPointerFromMemory(currentNode, sberr);
-
-      return Iterator(node_, currentNode, constants_);
-    };
-    inline Iterator end() const {
-      return Iterator(node_, raw_ + constants_->kHeadOffset, constants_);
-    };
+    inline Iterator begin() const;
+    inline Iterator end() const;
 
   private:
     addr_t raw_;

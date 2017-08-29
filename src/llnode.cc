@@ -15,6 +15,7 @@
 #include "src/llv8.h"
 #include "src/llv8-inl.h"
 #include "src/llnode-module.h"
+#include "src/llnode-module-inl.h"
 
 namespace llnode {
 
@@ -329,7 +330,6 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
 
   int activeHandles = 0;
   node::Environment env = node::Environment::GetCurrent(&nodeMod);
-
   for(auto w : env.handle_wrap_queue()) {
     if (w.persistent_addr() == 0) {
       continue;

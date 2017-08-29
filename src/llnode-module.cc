@@ -1,5 +1,4 @@
 #include "llnode-module.h"
-#include "llnode-module-inl.h"
 
 namespace llnode {
 namespace node {
@@ -26,6 +25,13 @@ HandleWrap HandleWrap::FromListNode(LLNode *node, addr_t list_node_addr) {
 
 ReqWrap ReqWrap::FromListNode(LLNode *node, addr_t list_node_addr) {
   return ReqWrap(node, list_node_addr - node->req_wrap()->kListNodeOffset);
+}
+
+Environment Environment::GetCurrent(LLNode *node) {
+  // TODO (mmarchini): maybe throw some warning here when env is not valid
+  addr_t envAddr = node->env()->kCurrentEnvironment;
+
+  return Environment(node, envAddr);
 }
 
 Queue<HandleWrap, constants::HandleWrapQueue> Environment::handle_wrap_queue() const {
