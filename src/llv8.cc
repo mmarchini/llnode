@@ -842,7 +842,7 @@ std::string Smi::ToString(Error& err) {
 
 /* Utility function to generate short type names for objects.
  */
-std::string HeapObject::GetTypeName(Error& err) {
+std::string HeapObject::GetTypeName(Error& err, bool withAttributes) {
   int64_t type = GetType(err);
   if (type == v8()->types()->kGlobalObjectType) return "(Global)";
   if (type == v8()->types()->kGlobalProxyType) return "(Global proxy)";

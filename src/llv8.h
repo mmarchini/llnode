@@ -110,7 +110,7 @@ class HeapObject : public Value {
 
   std::string ToString(Error& err);
   std::string Inspect(InspectOptions* options, Error& err);
-  std::string GetTypeName(Error& err);
+  std::string GetTypeName(Error& err, bool withAttributes = false);
 };
 
 class Map : public HeapObject {

@@ -181,6 +181,7 @@ class TypeRecord {
 };
 
 typedef std::map<std::string, TypeRecord*> TypeRecordMap;
+typedef std::map<uint64_t, TypeRecord*> TypeRecordMapByMap;
 
 class FindJSObjectsVisitor : MemoryVisitor {
  public:

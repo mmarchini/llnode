@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <iostream>
 #include <fstream>
 #include <vector>
 
@@ -48,14 +49,73 @@ bool FindObjectsCmd::DoExecute(SBDebugger d, char** cmd,
     return false;
   }
 
+  std::vector<TypeRecord*> sorted_by_count;
+
+  TypeRecordMap mapstoinstances = llscan.GetMapsToInstances();
+  TypeRecordMapByMap typerecordsbymap;
+  std::map<uint64_t, uint64_t> propertiesbymap;
   /* Create a vector to hold the entries sorted by instance count
    * TODO(hhellyer) - Make sort type an option (by count, size or name)
    */
-  std::vector<TypeRecord*> sorted_by_count;
-  TypeRecordMap::iterator end = llscan.GetMapsToInstances().end();
-  for (TypeRecordMap::iterator it = llscan.GetMapsToInstances().begin();
+  TypeRecordMap::iterator end = mapstoinstances.end();
+  for (TypeRecordMap::iterator it = mapstoinstances.begin();
        it != end; ++it) {
-    sorted_by_count.push_back(it->second);
+    for(auto that = it->second->GetInstances().begin(); that != it->second->GetInstances().end(); ++that) {
+      uint64_t word = *that;
+      TypeRecord* t;
+
+      v8::Value v8_value(&llv8, word);
+
+      v8::Error err;
+      // Test if this is SMI
+      // Skip inspecting things that look like Smi's, they aren't objects.
+      v8::Smi smi(v8_value);
+      if (smi.Check()) continue;
+
+      v8::HeapObject heap_object(v8_value);
+      if (!heap_object.Check()) continue;
+
+      v8::HeapObject map_object = heap_object.GetMap(err);
+      if (err.Fail() || !map_object.Check()) continue;
+
+      v8::Map map(map_object);
+
+      if(typerecordsbymap.count(map.raw()) == 0) {
+        v8::HeapObject descriptors_obj = map.InstanceDescriptors(err);
+        if (err.Fail()) continue;
+
+        v8::DescriptorArray descriptors(descriptors_obj);
+        int64_t own_descriptors_count = map.NumberOfOwnDescriptors(err);
+        if (err.Fail()) continue;
+
+        std::string type_name = heap_object.GetTypeName(err);
+        std::string properties = "";
+        for (int64_t i = 0; i < own_descriptors_count; i++) {
+          v8::Value key = descriptors.GetKey(i, err);
+          if (err.Fail()) continue;
+          if(i != 0) {
+            properties += ", ";
+          }
+          if(i == 4) {
+            properties += "...";
+            break;
+          }
+          properties += key.ToString(err);
+        }
+        if(properties != "") {
+          type_name += ": " + properties;
+        }
+        t = new TypeRecord(type_name);
+        typerecordsbymap.emplace(map.raw(), t);
+        propertiesbymap.emplace((uint64_t) t, own_descriptors_count);
+        sorted_by_count.push_back(t);
+      } else {
+        t = typerecordsbymap.at(map.raw());
+      }
+      if (t->GetInstances().count(word) == 0) {
+        t->AddInstance(word, map.InstanceSize(err));
+      }
+    }
   }
 
   std::sort(sorted_by_count.begin(), sorted_by_count.end(),
@@ -63,14 +123,16 @@ bool FindObjectsCmd::DoExecute(SBDebugger d, char** cmd,
 
   uint64_t total_objects = 0;
 
-  result.Printf(" Instances  Total Size Name\n");
-  result.Printf(" ---------- ---------- ----\n");
+  result.Printf("       Object Instances  Total Size Properties Name\n");
+  result.Printf(" ------------ ---------- ---------- ---------- ----\n");
 
   for (std::vector<TypeRecord*>::iterator it = sorted_by_count.begin();
        it != sorted_by_count.end(); ++it) {
     TypeRecord* t = *it;
-    result.Printf(" %10" PRId64 " %10" PRId64 " %s\n", t->GetInstanceCount(),
-                  t->GetTotalInstanceSize(), t->GetTypeName().c_str());
+    result.Printf(" %12" PRIx64 " %10" PRId64 " %10" PRId64 " %10" PRId64 " %s\n",
+                  *(t->GetInstances().begin()), t->GetInstanceCount(),
+                  t->GetTotalInstanceSize(), propertiesbymap.at((uint64_t) t),
+                  t->GetTypeName().c_str());
     total_objects += t->GetInstanceCount();
   }
 
