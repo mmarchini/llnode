@@ -21,6 +21,9 @@ class FindObjectsCmd : public CommandBase {
 
   bool DoExecute(lldb::SBDebugger d, char** cmd,
                  lldb::SBCommandReturnObject& result) override;
+
+  void SimpleOutput(lldb::SBCommandReturnObject& result);
+  void DetailedOutput(lldb::SBCommandReturnObject& result);
 };
 
 class FindInstancesCmd : public CommandBase {
@@ -181,6 +184,7 @@ class TypeRecord {
 };
 
 typedef std::map<std::string, TypeRecord*> TypeRecordMap;
+typedef std::map<uint64_t, TypeRecord*> TypeRecordMapByMap;
 
 class FindJSObjectsVisitor : MemoryVisitor {
  public:

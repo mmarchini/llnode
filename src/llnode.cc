@@ -39,6 +39,7 @@ char** CommandBase::ParseInspectOptions(char** cmd,
       {"print-map", no_argument, nullptr, 'm'},
       {"print-source", no_argument, nullptr, 's'},
       {"verbose", no_argument, nullptr, 'v'},
+      {"detailed", no_argument, nullptr, 'd'},
       {nullptr, 0, nullptr, 0}};
 
   int argc = 1;
@@ -56,7 +57,7 @@ char** CommandBase::ParseInspectOptions(char** cmd,
   optind = 0;
   opterr = 1;
   do {
-    int arg = getopt_long(argc, args, "Fmsvl:", opts, nullptr);
+    int arg = getopt_long(argc, args, "Fmsdvl:", opts, nullptr);
     if (arg == -1) break;
 
     switch (arg) {
@@ -72,6 +73,7 @@ char** CommandBase::ParseInspectOptions(char** cmd,
       case 's':
         options->print_source = true;
         break;
+      case 'd':
       case 'v':
         options->detailed = true;
         break;

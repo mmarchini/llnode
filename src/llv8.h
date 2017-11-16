@@ -11,6 +11,7 @@ namespace llnode {
 
 class FindJSObjectsVisitor;
 class FindReferencesCmd;
+class FindObjectsCmd;
 
 namespace v8 {
 
@@ -110,7 +111,7 @@ class HeapObject : public Value {
 
   std::string ToString(Error& err);
   std::string Inspect(InspectOptions* options, Error& err);
-  std::string GetTypeName(Error& err);
+  std::string GetTypeName(Error& err, bool withAttributes = false);
 };
 
 class Map : public HeapObject {
@@ -536,6 +537,7 @@ class LLV8 {
   friend class JSDate;
   friend class CodeMap;
   friend class llnode::FindJSObjectsVisitor;
+  friend class llnode::FindObjectsCmd;
   friend class llnode::FindReferencesCmd;
 };
 

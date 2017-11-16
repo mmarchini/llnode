@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <iostream>
 #include <fstream>
 #include <vector>
 
@@ -48,6 +49,23 @@ bool FindObjectsCmd::DoExecute(SBDebugger d, char** cmd,
     return false;
   }
 
+  v8::Value::InspectOptions inspect_options;
+  inspect_options.detailed = false;
+  ParseInspectOptions(cmd, &inspect_options);
+
+  if(inspect_options.detailed) {
+    DetailedOutput(result);
+  } else {
+    SimpleOutput(result);
+  }
+
+
+  result.SetStatus(eReturnStatusSuccessFinishResult);
+  return true;
+}
+
+
+void FindObjectsCmd::SimpleOutput(SBCommandReturnObject& result) {
   /* Create a vector to hold the entries sorted by instance count
    * TODO(hhellyer) - Make sort type an option (by count, size or name)
    */
@@ -61,7 +79,7 @@ bool FindObjectsCmd::DoExecute(SBDebugger d, char** cmd,
   std::sort(sorted_by_count.begin(), sorted_by_count.end(),
             TypeRecord::CompareInstanceCounts);
 
-  uint64_t total_objects = 0;
+  uint64_t total_objects = 0, total_size = 0;
 
   result.Printf(" Instances  Total Size Name\n");
   result.Printf(" ---------- ---------- ----\n");
@@ -72,10 +90,149 @@ bool FindObjectsCmd::DoExecute(SBDebugger d, char** cmd,
     result.Printf(" %10" PRId64 " %10" PRId64 " %s\n", t->GetInstanceCount(),
                   t->GetTotalInstanceSize(), t->GetTypeName().c_str());
     total_objects += t->GetInstanceCount();
+    total_size += t->GetTotalInstanceSize();
   }
 
-  result.SetStatus(eReturnStatusSuccessFinishResult);
-  return true;
+  result.Printf(" ---------- ---------- \n");
+  result.Printf(" %10" PRId64 " %10" PRId64 " \n", total_objects, total_size);
+}
+
+
+// TODO (mmarchini) refactor this entire method
+void FindObjectsCmd::DetailedOutput(SBCommandReturnObject& result) {
+  std::vector<TypeRecord*> sorted_by_count;
+
+  TypeRecordMap mapstoinstances = llscan.GetMapsToInstances();
+  std::map<std::string, std::map<std::string, TypeRecord*>> typerecordsbymap;
+  std::map<uint64_t, uint64_t> propertiesbytr;
+  std::map<uint64_t, uint64_t> lengthbytr;
+  TypeRecordMap::iterator end = mapstoinstances.end();
+  for (TypeRecordMap::iterator it = mapstoinstances.begin();
+       it != end; ++it) {
+    for(auto that = it->second->GetInstances().begin(); that != it->second->GetInstances().end(); ++that) {
+      uint64_t word = *that;
+      TypeRecord* t = NULL;
+      std::map<std::string, TypeRecord*> *typerecords = NULL;
+
+      v8::Value v8_value(&llv8, word);
+
+      v8::Error err;
+      // Test if this is SMI
+      // Skip inspecting things that look like Smi's, they aren't objects.
+      v8::Smi smi(v8_value);
+      if (smi.Check()) continue; // {std::cout << 1 << std::endl; continue;}
+
+      v8::HeapObject heap_object(v8_value);
+      if (!heap_object.Check()) continue; // {std::cout << 2 << std::endl; continue;}
+
+      v8::HeapObject map_object = heap_object.GetMap(err);
+      if (err.Fail() || !map_object.Check()) continue; // {std::cout << 3 << std::endl; continue;}
+
+      v8::Map map(map_object);
+
+      std::string type_name = heap_object.GetTypeName(err);
+
+      v8::HeapObject descriptors_obj = map.InstanceDescriptors(err);
+      if (err.Fail()) {
+        continue;
+      }
+
+      v8::DescriptorArray descriptors(descriptors_obj);
+      int64_t own_descriptors_count = map.NumberOfOwnDescriptors(err);
+      if (err.Fail()) continue; // {std::cout << 5 << std::endl; continue;}
+
+      int64_t type = heap_object.GetType(err);
+      uint64_t indexed_properties_count = 0;
+      if (v8::JSObject::IsObjectType(&llv8, type)) {
+        v8::JSObject js_obj(heap_object);
+        indexed_properties_count = js_obj.GetArrayLength(err);
+        if (err.Fail()) {
+          indexed_properties_count = 0;
+          std::cout << "deu ruim" << std::endl;
+        }
+      } else if (type == llv8.types()->kJSArrayType) {
+        v8::JSArray js_array(heap_object);
+        v8::Smi len = js_array.Length(err);
+        if (err.Fail()) {
+          std::cout << "deu ruim" << std::endl;
+        } else {
+          indexed_properties_count = len.GetValue();
+        }
+      }
+
+      std::string properties = "";
+      for (int64_t i = 0; i < own_descriptors_count; i++) {
+        v8::Value key = descriptors.GetKey(i, err);
+        if (err.Fail()) continue; // {std::cout << 6 << std::endl; continue;}
+        if(i != 0) {
+          properties += ", ";
+        }
+        properties += key.ToString(err);
+        properties = "[" +  std::to_string(indexed_properties_count) + "] " + properties;
+      }
+
+      if(typerecordsbymap.count(type_name) > 0) {
+        typerecords = &typerecordsbymap.at(type_name);
+        if(typerecords->count(properties) > 0) {
+          t = typerecords->at(properties);
+        }
+      }
+      if (t == NULL) {
+        std::string full_type_name = type_name;
+        std::string properties2 = "";
+        for (int64_t i = 0; i < own_descriptors_count; i++) {
+          v8::Value key = descriptors.GetKey(i, err);
+          if (err.Fail()) continue; // {std::cout << 7 << std::endl; continue;}
+          if(i != 0) {
+            properties2 += ", ";
+          }
+          if(i == 4) {
+            properties2 += "...";
+            break;
+          }
+          properties2 += key.ToString(err);
+        }
+        if(properties2 != "") {
+          full_type_name += ": " + properties2;
+        }
+        t = new TypeRecord(full_type_name);
+        typerecordsbymap[type_name][properties] = t;
+        propertiesbytr[(uint64_t) t] = own_descriptors_count;
+        lengthbytr[(uint64_t) t] = indexed_properties_count;
+        sorted_by_count.push_back(t);
+      }
+      if (t->GetInstances().count(word) == 0) {
+        t->AddInstance(word, map.InstanceSize(err));
+      }
+    }
+  }
+
+  std::sort(sorted_by_count.begin(), sorted_by_count.end(),
+            TypeRecord::CompareInstanceCounts);
+
+  uint64_t total_objects = 0, total_size = 0;
+
+  result.Printf("   Repr. Obj.  Instances  Total Size  Properties  Array Size Name\n");
+  result.Printf(" ------------ ---------- ----------- ----------- ----------- ----\n");
+
+  for (std::vector<TypeRecord*>::iterator it = sorted_by_count.begin();
+       it != sorted_by_count.end(); ++it) {
+    TypeRecord* t = *it;
+    result.Printf(" %12" PRIx64 " %10" PRId64 " %11" PRId64 " %11" PRId64 " %11" PRId64 " %s\n",
+                  *(t->GetInstances().begin()),
+                  t->GetInstanceCount(),
+                  t->GetTotalInstanceSize(),
+                  propertiesbytr.at((uint64_t) t),
+                  lengthbytr.at((uint64_t) t),
+                  t->GetTypeName().c_str());
+    total_objects += t->GetInstanceCount();
+    total_size += t->GetTotalInstanceSize();
+  }
+
+  result.Printf(" ------------ ---------- ----------- ----------- ----------- ----\n");
+  result.Printf("             %11" PRId64 " %11" PRId64 " \n", total_objects, total_size);
+
+  sorted_by_count.clear();
 }
 
 
