@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <iostream>
 #include <string>
 
 #include <lldb/API/SBExpressionOptions.h>
@@ -24,6 +23,7 @@ using lldb::addr_t;
 
 static std::string kConstantPrefix = "v8dbg_";
 
+// TODO (mmarchini) should be moved to constants.h
 bool IsDebugMode() {
   char* var = getenv("LLNODE_DEBUG");
   if (var == nullptr) return false;
@@ -39,6 +39,7 @@ void Module::Assign(SBTarget target, Common* common) {
 }
 
 
+// TODO (mmarchini) should be moved to constants.h
 int64_t LookupConstant(SBTarget target, const char* name, int64_t def,
                        Error& err) {
   int64_t res;

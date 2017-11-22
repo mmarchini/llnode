@@ -1,8 +1,4 @@
 #include "src/constants.h"
-// TODO(mmarchini): This file shouldn't import llv8-constants nor llv8, as the
-//                  intention is to inherit llv8-constants.h from constants.h
-#include <iostream>
-#include "src/llv8-constants.h"
 #include "src/llv8.h"
 
 namespace llnode {

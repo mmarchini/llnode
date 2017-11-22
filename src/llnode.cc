@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include <cinttypes>
-#include <iostream>
 #include <sstream>
 
 #include <lldb/API/SBExpressionOptions.h>
@@ -40,6 +39,7 @@ using lldb::addr_t;
 using v8::constants::LookupConstant;
 
 v8::LLV8 llv8;
+// TODO (mmarchini) better name
 node::LLNode nodeMod;
 
 char** CommandBase::ParseInspectOptions(char** cmd,
@@ -314,10 +314,10 @@ bool ListCmd::DoExecute(SBDebugger d, char** cmd,
 
 bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
                                     SBCommandReturnObject& result) {
+  int activeHandles = 0;
   SBTarget target = d.GetSelectedTarget();
   SBProcess process = target.GetProcess();
   SBThread thread = process.GetSelectedThread();
-  SBError sberr;
   std::ostringstream resultMsg;
   v8::Value::InspectOptions inspect_options;
   inspect_options.detailed = true;
@@ -330,13 +330,17 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
     return false;
   }
 
-  int activeHandles = 0;
   node::Environment env = node::Environment::GetCurrent(&nodeMod);
+  if(env.raw() == -1) {
+    result.SetError("Node version doesn't support this command\n");
+    return false;
+  }
   for (auto w : env.handle_wrap_queue()) {
     if (w.persistent_addr() == 0) {
       continue;
     } else if (w.persistent_addr() == -1) {
       result.SetError("Failed to load persistent handle");
+      activeHandles = -1;
       break;
     }
 
@@ -345,11 +349,15 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
     std::string res = v8_object.Inspect(&inspect_options, err);
     if (err.Fail()) {
       result.SetError("Failed to load object");
+      activeHandles = -1;
       break;
     }
 
     activeHandles++;
     resultMsg << res.c_str() << std::endl;
+  }
+  if(activeHandles == -1) {
+    return false;
   }
 
   result.Printf("Active handles: %d\n\n", activeHandles);
@@ -359,6 +367,7 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
 
 bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
                                      SBCommandReturnObject& result) {
+  int activeRequests = 0;
   SBTarget target = d.GetSelectedTarget();
   SBProcess process = target.GetProcess();
   SBThread thread = process.GetSelectedThread();
@@ -375,14 +384,17 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
     return false;
   }
 
-  int activeHandles = 0;
   node::Environment env = node::Environment::GetCurrent(&nodeMod);
-
+  if(env.raw() == -1) {
+    result.SetError("Node version doesn't support this command\n");
+    return false;
+  }
   for (auto w : env.req_wrap_queue()) {
     if (w.persistent_addr() == 0) {
       continue;
     } else if (w.persistent_addr() == -1) {
       result.SetError("Failed to load persistent handle");
+      activeRequests = -1;
       break;
     }
 
@@ -391,14 +403,18 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
     std::string res = v8_object.Inspect(&inspect_options, err);
     if (err.Fail()) {
       result.SetError("Failed to load object");
+      activeRequests = -1;
       break;
     }
 
-    activeHandles++;
+    activeRequests++;
     resultMsg << res.c_str() << std::endl;
   }
+  if(activeRequests == -1) {
+    return false;
+  }
 
-  result.Printf("Active requests: %d\n\n", activeHandles);
+  result.Printf("Active requests: %d\n\n", activeRequests);
   result.Printf("%s", resultMsg.str().c_str());
   return true;
 }

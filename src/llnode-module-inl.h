@@ -10,6 +10,7 @@ T Queue<T, C>::Iterator::operator*() const {
 
 template <typename T, typename C>
 const typename Queue<T, C>::Iterator Queue<T, C>::Iterator::operator++() {
+  // TODO (mmarchini) check errors
   lldb::SBError sberr;
 
   addr_t current = current_ + constants_->kNextOffset;
@@ -25,6 +26,7 @@ bool Queue<T, C>::Iterator::operator!=(const Iterator& that) const {
 
 template <typename T, typename C>
 typename Queue<T, C>::Iterator Queue<T, C>::begin() const {
+  // TODO (mmarchini) check errors
   lldb::SBError sberr;
   addr_t currentNode = raw_ + constants_->kHeadOffset;
 

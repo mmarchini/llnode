@@ -10,6 +10,9 @@ addr_t BaseObject::persistent_addr() {
       raw_ + node_->base_object()->kPersistentHandleOffset;
   addr_t persistentHandle =
       node_->process().ReadPointerFromMemory(persistentHandlePtr, sberr);
+  if (sberr.Fail()) {
+    return -1;
+  }
   return persistentHandle;
 }
 
@@ -18,6 +21,9 @@ addr_t BaseObject::v8_object_addr() {
 
   addr_t persistentHandle = persistent_addr();
   addr_t obj = node_->process().ReadPointerFromMemory(persistentHandle, sberr);
+  if (sberr.Fail()) {
+    return -1;
+  }
   return obj;
 }
 

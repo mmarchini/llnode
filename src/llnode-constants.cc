@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include <lldb/API/LLDB.h>
 
 #include "llnode-constants.h"
@@ -52,7 +50,6 @@ addr_t Environment::DefaultLoadCurrentEnvironment() {
 
   if (!(llv8.isolate()->kThreadLocalTopOffset != -1 &&
         llv8.thread_local_top()->kContextOffset != -1)) {
-    // TODO warn user
     return env;
   }
 
@@ -60,8 +57,14 @@ addr_t Environment::DefaultLoadCurrentEnvironment() {
 
   thread_context_ptr = isolate_thread + llv8.thread_local_top()->kContextOffset;
   thread_context = process.ReadPointerFromMemory(thread_context_ptr, sberr);
+  if (sberr.Fail()) {
+    return -1;
+  }
   v8::Context ctx(&llv8, thread_context);
   v8::Value native = ctx.Native(err);
+  if (err.Fail()) {
+    return -1;
+  }
   env = CurrentEnvironmentFromContext(native);
   return env;
 }
@@ -73,6 +76,9 @@ addr_t Environment::CurrentEnvironmentFromContext(v8::Value context) {
   v8::FixedArray contextArray = v8::FixedArray(context);
   v8::FixedArray embed =
       contextArray.Get<v8::FixedArray>(llv8.context()->kEmbedderDataIndex, err);
+  if (err.Fail()) {
+    return -1;
+  }
   v8::Smi encodedEnv = embed.Get<v8::Smi>(kEnvContextEmbedderDataIndex, err);
   if (err.Fail()) {
     return -1;
@@ -89,14 +95,12 @@ addr_t Environment::FallbackLoadCurrentEnvironment() {
     return -1;
   }
 
-  // Load V8 constants from postmortem data
   llv8.Load(target_);
 
-  {
-    SBStream desc;
-    if (!thread.GetDescription(desc)) return -1;
+  SBStream desc;
+  if (!thread.GetDescription(desc)) {
+    return -1;
   }
-
   SBFrame selected_frame = thread.GetSelectedFrame();
 
   uint32_t num_frames = thread.GetNumFrames();

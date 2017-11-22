@@ -15,7 +15,6 @@ class ReqWrap;
 template <typename T, typename C>
 class Queue;
 
-// TODO (mmarchini): give a better name
 class BaseNode {
  public:
   BaseNode(LLNode *node) : node_(node){};
@@ -53,7 +52,6 @@ class BaseObject : public BaseNode {
 
 class AsyncWrap : public BaseObject {
  public:
-  // static std::list<HandleWrap> *GetEnvQueue(Environment *env);
   AsyncWrap(LLNode *node, addr_t raw) : BaseObject(node, raw){};
 };
 
