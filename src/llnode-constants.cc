@@ -19,12 +19,15 @@ namespace constants {
 v8::LLV8 llv8;
 
 void Environment::Load() {
+  // FIXME (this symbols is missing apparently)
   kIsolate = LoadRawConstant("node::node_isolate");
-  kReqWrapQueueOffset = LoadConstant("class__Environment__reqWrapQueue", 1256);
-  kHandleWrapQueueOffset =
-      LoadConstant("class__Environment__handleWrapQueue", 1240);
+  kReqWrapQueueOffset = LoadConstant(
+      "offset_Environment__req_wrap_queue___Environment_ReqWrapQueue", 1256);
+  kHandleWrapQueueOffset = LoadConstant(
+      "offset_Environment__handle_wrap_queue___Environment_HandleWrapQueue",
+      1240);
   kEnvContextEmbedderDataIndex =
-      LoadConstant("environment_context_idx_embedder_data", 32);
+      LoadConstant("const_Environment__kContextEmbedderDataIndex__int", 32);
   kCurrentEnvironment = LoadCurrentEnvironment();
 }
 
@@ -147,26 +150,38 @@ addr_t Environment::FallbackLoadCurrentEnvironment() {
 
 
 void ReqWrapQueue::Load() {
-  kHeadOffset = LoadConstant("class__ReqWrapQueue__headOffset", (int64_t)0);
-  kNextOffset = LoadConstant("class__ReqWrapQueue__nextOffset", (int64_t)8);
+  kHeadOffset = LoadConstant(
+      "offset_Environment_ReqWrapQueue__head___ListNode_ReqWrapQueue",
+      (int64_t)0);
+  kNextOffset = LoadConstant(
+      "offset_ListNode_ReqWrap__next___uintptr_t", (int64_t)8);
 }
 
 void ReqWrap::Load() {
-  kListNodeOffset = LoadConstant("class__ReqWrap__node", (int64_t)48);
+  kListNodeOffset = LoadConstant(
+      "offset_ReqWrap__req_wrap_queue___ListNode_ReqWrapQueue",
+      (int64_t)48);
 }
 
 void HandleWrapQueue::Load() {
-  kHeadOffset = LoadConstant("class__HandleWrapQueue__headOffset", (int64_t)0);
-  kNextOffset = LoadConstant("class__HandleWrapQueue__nextOffset", (int64_t)8);
+  kHeadOffset = LoadConstant(
+      "offset_Environment__handle_wrap_queue___Environment_HandleWrapQueue",
+      (int64_t)0);
+  kNextOffset = LoadConstant(
+      "offset_ListNode_HandleWrap__next___uintptr_t",
+      (int64_t)8);
 }
 
 void HandleWrap::Load() {
-  kListNodeOffset = LoadConstant("class__HandleWrap__node", (int64_t)48);
+  kListNodeOffset = LoadConstant(
+      "offset_HandleWrap__handle_wrap_queue___ListNode_HandleWrap",
+      (int64_t)48);
 }
 
 void BaseObject::Load() {
-  kPersistentHandleOffset =
-      LoadConstant("class__BaseObject__persistent_handle", (int64_t)8);
+  kPersistentHandleOffset = LoadConstant(
+      "offset_BaseObject__persistent_handle___v8_Persistent_v8_Object",
+      (int64_t)8);
 }
 }
 }
