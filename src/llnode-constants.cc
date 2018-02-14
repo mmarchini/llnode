@@ -22,12 +22,11 @@ void Environment::Load() {
   // FIXME (this symbols is missing apparently)
   kIsolate = LoadRawConstant("node::node_isolate");
   kReqWrapQueueOffset = LoadConstant(
-      "offset_Environment__req_wrap_queue___Environment_ReqWrapQueue", 1256);
+      "offset_Environment__req_wrap_queue___Environment_ReqWrapQueue");
   kHandleWrapQueueOffset = LoadConstant(
-      "offset_Environment__handle_wrap_queue___Environment_HandleWrapQueue",
-      1240);
+      "offset_Environment__handle_wrap_queue___Environment_HandleWrapQueue");
   kEnvContextEmbedderDataIndex =
-      LoadConstant("const_Environment__kContextEmbedderDataIndex__int", 32);
+      LoadConstant("const_Environment__kContextEmbedderDataIndex__int");
   kCurrentEnvironment = LoadCurrentEnvironment();
 }
 
@@ -151,37 +150,29 @@ addr_t Environment::FallbackLoadCurrentEnvironment() {
 
 void ReqWrapQueue::Load() {
   kHeadOffset = LoadConstant(
-      "offset_Environment_ReqWrapQueue__head___ListNode_ReqWrapQueue",
-      (int64_t)0);
-  kNextOffset = LoadConstant(
-      "offset_ListNode_ReqWrap__next___uintptr_t", (int64_t)8);
+      "offset_Environment_ReqWrapQueue__head___ListNode_ReqWrapQueue");
+  kNextOffset = LoadConstant("offset_ListNode_ReqWrap__next___uintptr_t");
 }
 
 void ReqWrap::Load() {
   kListNodeOffset = LoadConstant(
-      "offset_ReqWrap__req_wrap_queue___ListNode_ReqWrapQueue",
-      (int64_t)48);
+      "offset_ReqWrap__req_wrap_queue___ListNode_ReqWrapQueue");
 }
 
 void HandleWrapQueue::Load() {
   kHeadOffset = LoadConstant(
-      "offset_Environment__handle_wrap_queue___Environment_HandleWrapQueue",
-      (int64_t)0);
-  kNextOffset = LoadConstant(
-      "offset_ListNode_HandleWrap__next___uintptr_t",
-      (int64_t)8);
+      "offset_Environment__handle_wrap_queue___Environment_HandleWrapQueue");
+  kNextOffset = LoadConstant("offset_ListNode_HandleWrap__next___uintptr_t");
 }
 
 void HandleWrap::Load() {
   kListNodeOffset = LoadConstant(
-      "offset_HandleWrap__handle_wrap_queue___ListNode_HandleWrap",
-      (int64_t)48);
+      "offset_HandleWrap__handle_wrap_queue___ListNode_HandleWrap");
 }
 
 void BaseObject::Load() {
   kPersistentHandleOffset = LoadConstant(
-      "offset_BaseObject__persistent_handle___v8_Persistent_v8_Object",
-      (int64_t)8);
+      "offset_BaseObject__persistent_handle___v8_Persistent_v8_Object");
 }
 }
 }

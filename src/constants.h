@@ -1,6 +1,7 @@
 #ifndef SRC_CONSTANTS_H_
 #define SRC_CONSTANTS_H_
 
+#include <string>
 #include <lldb/API/LLDB.h>
 #include <string>
 using lldb::SBTarget;

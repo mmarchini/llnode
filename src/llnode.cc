@@ -384,7 +384,6 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
   SBTarget target = d.GetSelectedTarget();
   SBProcess process = target.GetProcess();
   SBThread thread = process.GetSelectedThread();
-  SBError sberr;
   std::ostringstream resultMsg;
   v8::Value::InspectOptions inspect_options;
   inspect_options.detailed = true;
