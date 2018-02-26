@@ -40,6 +40,7 @@ class Environment : public BaseNode {
 class BaseObject : public BaseNode {
  public:
   BaseObject(LLNode *node, addr_t raw) : BaseNode(node), raw_(raw){};
+  inline addr_t raw() { return raw_; };
 
   addr_t persistent_addr();
 

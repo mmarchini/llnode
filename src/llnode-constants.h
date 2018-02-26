@@ -41,8 +41,6 @@ class Environment : public Module {
 
  private:
   addr_t LoadCurrentEnvironment();
-  addr_t DefaultLoadCurrentEnvironment();
-  addr_t FallbackLoadCurrentEnvironment();
   addr_t CurrentEnvironmentFromContext(v8::Value context);
 };
 

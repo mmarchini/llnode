@@ -361,7 +361,9 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
     v8::Error err;
     std::string res = v8_object.Inspect(&inspect_options, err);
     if (err.Fail()) {
-      result.SetError("Failed to load object");
+      std::stringstream sstream;
+      sstream << "Failed to load object at address " << std::hex << std::hex << w.v8_object_addr();
+      result.SetError(sstream.str().c_str());
       activeHandles = -1;
       break;
     }
@@ -378,6 +380,7 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
   return true;
 }
 
+// TODO (mmarchini) change != -1 comparisons with err.Fail()
 bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
                                      SBCommandReturnObject& result) {
   int activeRequests = 0;
@@ -414,7 +417,9 @@ bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
     v8::Error err;
     std::string res = v8_object.Inspect(&inspect_options, err);
     if (err.Fail()) {
-      result.SetError("Failed to load object");
+      std::stringstream sstream;
+      sstream << "Failed to load object at address " << std::hex << std::hex << w.v8_object_addr();
+      result.SetError(sstream.str().c_str());
       activeRequests = -1;
       break;
     }

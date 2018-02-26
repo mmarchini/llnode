@@ -31,66 +31,7 @@ void Environment::Load() {
 }
 
 addr_t Environment::LoadCurrentEnvironment() {
-  addr_t currentEnvironment = DefaultLoadCurrentEnvironment();
-  if (currentEnvironment == -1) {
-    currentEnvironment = FallbackLoadCurrentEnvironment();
-  }
-
-  return currentEnvironment;
-}
-
-addr_t Environment::DefaultLoadCurrentEnvironment() {
-  llv8.Load(target_);
-
-  SBProcess process = target_.GetProcess();
-  SBError sberr;
-  uint64_t env = -1;
-  uint64_t isolate_thread = 0;
-  uint64_t thread_context_ptr = 0;
-  uint64_t thread_context = 0;
-  v8::Error err;
-
-  if (!(llv8.isolate()->kThreadLocalTopOffset != -1 &&
-        llv8.thread_local_top()->kContextOffset != -1)) {
-    return env;
-  }
-
-  isolate_thread = kIsolate + llv8.isolate()->kThreadLocalTopOffset;
-
-  thread_context_ptr = isolate_thread + llv8.thread_local_top()->kContextOffset;
-  thread_context = process.ReadPointerFromMemory(thread_context_ptr, sberr);
-  if (sberr.Fail()) {
-    return -1;
-  }
-  v8::Context ctx(&llv8, thread_context);
-  v8::Value native = ctx.Native(err);
-  if (err.Fail()) {
-    return -1;
-  }
-  env = CurrentEnvironmentFromContext(native);
-  return env;
-}
-
-addr_t Environment::CurrentEnvironmentFromContext(v8::Value context) {
-  llv8.Load(target_);
-  v8::Error err;
-
-  v8::FixedArray contextArray = v8::FixedArray(context);
-  v8::FixedArray embed =
-      contextArray.Get<v8::FixedArray>(llv8.context()->kEmbedderDataIndex, err);
-  if (err.Fail()) {
-    return -1;
-  }
-  v8::Smi encodedEnv = embed.Get<v8::Smi>(kEnvContextEmbedderDataIndex, err);
-  if (err.Fail()) {
-    return -1;
-  } else {
-    return encodedEnv.raw();
-  }
-}
-
-addr_t Environment::FallbackLoadCurrentEnvironment() {
-  addr_t env = -1;
+  addr_t currentEnvironment = -1;
   SBProcess process = target_.GetProcess();
   SBThread thread = process.GetSelectedThread();
   if (!thread.IsValid()) {
@@ -128,7 +69,7 @@ addr_t Environment::FallbackLoadCurrentEnvironment() {
         if (err.Success()) {
           if (native.raw() == context.raw()) {
             found = true;
-            env = CurrentEnvironmentFromContext(native);
+            currentEnvironment = CurrentEnvironmentFromContext(native);
             break;
           }
         }
@@ -144,7 +85,25 @@ addr_t Environment::FallbackLoadCurrentEnvironment() {
     }
   }
 
-  return env;
+  return currentEnvironment;
+}
+
+addr_t Environment::CurrentEnvironmentFromContext(v8::Value context) {
+  llv8.Load(target_);
+  v8::Error err;
+
+  v8::FixedArray contextArray = v8::FixedArray(context);
+  v8::FixedArray embed =
+      contextArray.Get<v8::FixedArray>(llv8.context()->kEmbedderDataIndex, err);
+  if (err.Fail()) {
+    return -1;
+  }
+  v8::Smi encodedEnv = embed.Get<v8::Smi>(kEnvContextEmbedderDataIndex, err);
+  if (err.Fail()) {
+    return -1;
+  } else {
+    return encodedEnv.raw();
+  }
 }
 
 
@@ -161,7 +120,7 @@ void ReqWrap::Load() {
 
 void HandleWrapQueue::Load() {
   kHeadOffset = LoadConstant(
-      "offset_Environment__handle_wrap_queue___Environment_HandleWrapQueue");
+      "offset_Environment_HandleWrapQueue__head___ListNode_HandleWrap");
   kNextOffset = LoadConstant("offset_ListNode_HandleWrap__next___uintptr_t");
 }
 
