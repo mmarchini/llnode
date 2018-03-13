@@ -10,6 +10,7 @@
 
 #include <lldb/API/SBExpressionOptions.h>
 
+#include "src/error.h"
 #include "src/llnode.h"
 #include "src/llscan.h"
 #include "src/llv8-inl.h"
@@ -164,7 +165,7 @@ bool FindInstancesCmd::DoExecute(SBDebugger d, char** cmd,
     TypeRecord* t = instance_it->second;
     for (std::set<uint64_t>::iterator it = t->GetInstances().begin();
          it != t->GetInstances().end(); ++it) {
-      v8::Error err;
+      Error err;
       v8::Value v8_value(llscan_->v8(), *it);
       std::string res = v8_value.Inspect(&inspect_options, err);
       result.Printf("%s\n", res.c_str());
@@ -206,7 +207,7 @@ bool NodeInfoCmd::DoExecute(SBDebugger d, char** cmd,
     TypeRecord* t = instance_it->second;
     for (std::set<uint64_t>::iterator it = t->GetInstances().begin();
          it != t->GetInstances().end(); ++it) {
-      v8::Error err;
+      Error err;
 
       // The properties object should be a JSObject
       v8::JSObject process_obj(llscan_->v8(), *it);
@@ -474,7 +475,7 @@ void FindReferencesCmd::ScanForReferences(ObjectScanner* scanner) {
   for (auto const entry : mapstoinstances) {
     TypeRecord* typerecord = entry.second;
     for (uint64_t addr : typerecord->GetInstances()) {
-      v8::Error err;
+      Error err;
       v8::Value obj_value(llscan_->v8(), addr);
       v8::HeapObject heap_object(obj_value);
       int64_t type = heap_object.GetType(err);
@@ -513,7 +514,7 @@ void FindReferencesCmd::PrintReferences(SBCommandReturnObject& result,
   // Walk all the object instances and handle them according to their type.
   TypeRecordMap mapstoinstances = llscan_->GetMapsToInstances();
   for (uint64_t addr : *references) {
-    v8::Error err;
+    Error err;
     v8::Value obj_value(llscan_->v8(), addr);
     v8::HeapObject heap_object(obj_value);
     int64_t type = heap_object.GetType(err);
@@ -600,7 +601,7 @@ char** FindReferencesCmd::ParseScanOptions(char** cmd, ScanType* type) {
 
 
 void FindReferencesCmd::ReferenceScanner::PrintRefs(
-    SBCommandReturnObject& result, v8::JSObject& js_obj, v8::Error& err) {
+    SBCommandReturnObject& result, v8::JSObject& js_obj, Error& err) {
   int64_t length = js_obj.GetArrayLength(err);
   for (int64_t i = 0; i < length; ++i) {
     v8::Value v = js_obj.GetArrayElement(i, err);
@@ -635,7 +636,7 @@ void FindReferencesCmd::ReferenceScanner::PrintRefs(
 
 
 void FindReferencesCmd::ReferenceScanner::PrintRefs(
-    SBCommandReturnObject& result, v8::String& str, v8::Error& err) {
+    SBCommandReturnObject& result, v8::String& str, Error& err) {
   v8::LLV8* v8 = str.v8();
 
   int64_t repr = str.Representation(err);
@@ -681,7 +682,7 @@ void FindReferencesCmd::ReferenceScanner::PrintRefs(
 
 
 void FindReferencesCmd::ReferenceScanner::ScanRefs(v8::JSObject& js_obj,
-                                                   v8::Error& err) {
+                                                   Error& err) {
   ReferencesVector* references;
   std::set<uint64_t> already_saved;
 
@@ -718,7 +719,7 @@ void FindReferencesCmd::ReferenceScanner::ScanRefs(v8::JSObject& js_obj,
 
 
 void FindReferencesCmd::ReferenceScanner::ScanRefs(v8::String& str,
-                                                   v8::Error& err) {
+                                                   Error& err) {
   ReferencesVector* references;
   std::set<uint64_t> already_saved;
 
@@ -776,7 +777,7 @@ ReferencesVector* FindReferencesCmd::ReferenceScanner::GetReferences() {
 
 
 void FindReferencesCmd::PropertyScanner::PrintRefs(
-    SBCommandReturnObject& result, v8::JSObject& js_obj, v8::Error& err) {
+    SBCommandReturnObject& result, v8::JSObject& js_obj, Error& err) {
   // (Note: We skip array elements as they don't have names.)
 
   // Walk all the properties in this object.
@@ -802,7 +803,7 @@ void FindReferencesCmd::PropertyScanner::PrintRefs(
 
 
 void FindReferencesCmd::PropertyScanner::ScanRefs(v8::JSObject& js_obj,
-                                                  v8::Error& err) {
+                                                  Error& err) {
   // (Note: We skip array elements as they don't have names.)
 
   // Walk all the properties in this object.
@@ -837,7 +838,7 @@ ReferencesVector* FindReferencesCmd::PropertyScanner::GetReferences() {
 
 void FindReferencesCmd::StringScanner::PrintRefs(SBCommandReturnObject& result,
                                                  v8::JSObject& js_obj,
-                                                 v8::Error& err) {
+                                                 Error& err) {
   v8::LLV8* v8 = js_obj.v8();
 
   int64_t length = js_obj.GetArrayLength(err);
@@ -903,7 +904,7 @@ void FindReferencesCmd::StringScanner::PrintRefs(SBCommandReturnObject& result,
 
 void FindReferencesCmd::StringScanner::PrintRefs(SBCommandReturnObject& result,
                                                  v8::String& str,
-                                                 v8::Error& err) {
+                                                 Error& err) {
   v8::LLV8* v8 = str.v8();
 
   // Concatenated and sliced strings refer to other strings so
@@ -972,7 +973,7 @@ void FindReferencesCmd::StringScanner::PrintRefs(SBCommandReturnObject& result,
 
 
 void FindReferencesCmd::StringScanner::ScanRefs(v8::JSObject& js_obj,
-                                                v8::Error& err) {
+                                                Error& err) {
   v8::LLV8* v8 = js_obj.v8();
   ReferencesVector* references;
   std::set<std::string> already_saved;
@@ -1033,7 +1034,7 @@ void FindReferencesCmd::StringScanner::ScanRefs(v8::JSObject& js_obj,
 
 
 void FindReferencesCmd::StringScanner::ScanRefs(v8::String& str,
-                                                v8::Error& err) {
+                                                Error& err) {
   v8::LLV8* v8 = str.v8();
   ReferencesVector* references;
 
@@ -1117,7 +1118,7 @@ FindJSObjectsVisitor::FindJSObjectsVisitor(SBTarget& target, LLScan* llscan)
 uint64_t FindJSObjectsVisitor::Visit(uint64_t location, uint64_t word) {
   v8::Value v8_value(llscan_->v8(), word);
 
-  v8::Error err;
+  Error err;
   // Test if this is SMI
   // Skip inspecting things that look like Smi's, they aren't objects.
   v8::Smi smi(v8_value);
@@ -1165,7 +1166,7 @@ uint64_t FindJSObjectsVisitor::Visit(uint64_t location, uint64_t word) {
 
 void FindJSObjectsVisitor::InsertOnMapsToInstances(
     uint64_t word, v8::Map map, FindJSObjectsVisitor::MapCacheEntry map_info,
-    v8::Error& err) {
+    Error& err) {
   TypeRecord* t;
 
   auto entry = std::make_pair(map_info.type_name, nullptr);
@@ -1184,7 +1185,7 @@ void FindJSObjectsVisitor::InsertOnMapsToInstances(
 
 void FindJSObjectsVisitor::InsertOnDetailedMapsToInstances(
     uint64_t word, v8::Map map, FindJSObjectsVisitor::MapCacheEntry map_info,
-    v8::Error& err) {
+    Error& err) {
   DetailedTypeRecord* t;
 
   auto type_name_with_properties = map_info.GetTypeNameWithProperties();
@@ -1211,7 +1212,7 @@ void FindJSObjectsVisitor::InsertOnDetailedMapsToInstances(
 }
 
 
-bool FindJSObjectsVisitor::IsAHistogramType(v8::Map& map, v8::Error& err) {
+bool FindJSObjectsVisitor::IsAHistogramType(v8::Map& map, Error& err) {
   int64_t type = map.GetType(err);
   if (err.Fail()) return false;
 
@@ -1307,7 +1308,7 @@ FindJSObjectsVisitor::MapCacheEntry::GetTypeNameWithProperties(
 bool FindJSObjectsVisitor::MapCacheEntry::Load(v8::Map map,
                                                v8::HeapObject heap_object,
                                                v8::LLV8* llv8,
-                                               v8::Error& err) {
+                                               Error& err) {
   // Check type first
   is_histogram = FindJSObjectsVisitor::IsAHistogramType(map, err);
 
