@@ -27,6 +27,7 @@ addr_t Environment::LoadCurrentEnvironment() {
   SBProcess process = target_.GetProcess();
   SBThread thread = process.GetSelectedThread();
   if (!thread.IsValid()) {
+    // TODO Error("Invalid thread");
     return -1;
   }
 
@@ -34,6 +35,7 @@ addr_t Environment::LoadCurrentEnvironment() {
 
   SBStream desc;
   if (!thread.GetDescription(desc)) {
+    // TODO Error("Couldn't get thread description");
     return -1;
   }
   SBFrame selected_frame = thread.GetSelectedFrame();
@@ -47,11 +49,13 @@ addr_t Environment::LoadCurrentEnvironment() {
       v8::JSFrame v8_frame(llv8(), static_cast<int64_t>(frame.GetFP()));
       v8::JSFunction v8_function = v8_frame.GetFunction(err);
       if (err.Fail()) {
+        // std::cout << "Failed to get V8 Frame" << std::endl;
         continue;
       }
       v8::Value val;
       val = v8_function.GetContext(err);
       if (err.Fail()) {
+        // std::cout << "Failed to get V8 Context" << std::endl;
         continue;
       }
       bool found = false;
@@ -68,6 +72,7 @@ addr_t Environment::LoadCurrentEnvironment() {
 
         val = context.Previous(err);
         if (err.Fail()) {
+          // std::cout << "Failed to get previous V8 Context" << std::endl;
           break;
         }
       }

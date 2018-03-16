@@ -11,6 +11,11 @@ namespace llnode {
 namespace node {
 namespace constants {
 
+#define NODE_CONSTANTS_DEFAULT_METHODS(Class)  \
+  Class(v8::LLV8* llv8) : Module(llv8) {}   \
+  CONSTANTS_DEFAULT_METHODS(Class)
+
+
 class Module : public Constants {
  public:
   Module(v8::LLV8* llv8) : llv8_(llv8) {}
@@ -24,7 +29,7 @@ class Module : public Constants {
 
 class Environment : public Module {
  public:
-  CONSTANTS_DEFAULT_METHODS(Environment);
+  NODE_CONSTANTS_DEFAULT_METHODS(Environment);
 
   int64_t kReqWrapQueueOffset;
   int64_t kHandleWrapQueueOffset;
@@ -41,7 +46,7 @@ class Environment : public Module {
 
 class ReqWrapQueue : public Module {
  public:
-  CONSTANTS_DEFAULT_METHODS(ReqWrapQueue);
+  NODE_CONSTANTS_DEFAULT_METHODS(ReqWrapQueue);
 
   int64_t kHeadOffset;
   int64_t kNextOffset;
@@ -52,7 +57,7 @@ class ReqWrapQueue : public Module {
 
 class ReqWrap : public Module {
  public:
-  CONSTANTS_DEFAULT_METHODS(ReqWrap);
+  NODE_CONSTANTS_DEFAULT_METHODS(ReqWrap);
 
   int64_t kListNodeOffset;
 
@@ -62,7 +67,7 @@ class ReqWrap : public Module {
 
 class HandleWrapQueue : public Module {
  public:
-  CONSTANTS_DEFAULT_METHODS(HandleWrapQueue);
+  NODE_CONSTANTS_DEFAULT_METHODS(HandleWrapQueue);
 
   int64_t kHeadOffset;
   int64_t kNextOffset;
@@ -73,7 +78,7 @@ class HandleWrapQueue : public Module {
 
 class HandleWrap : public Module {
  public:
-  CONSTANTS_DEFAULT_METHODS(HandleWrap);
+  NODE_CONSTANTS_DEFAULT_METHODS(HandleWrap);
 
   int64_t kListNodeOffset;
 
@@ -83,7 +88,7 @@ class HandleWrap : public Module {
 
 class BaseObject : public Module {
  public:
-  CONSTANTS_DEFAULT_METHODS(BaseObject);
+  NODE_CONSTANTS_DEFAULT_METHODS(BaseObject);
 
   int64_t kPersistentHandleOffset;
 
