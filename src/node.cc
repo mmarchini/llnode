@@ -1,4 +1,3 @@
-#include <iostream>
 #include "node.h"
 
 namespace llnode {
@@ -40,7 +39,6 @@ ReqWrap ReqWrap::FromListNode(Node* node, addr_t list_node_addr) {
 Environment Environment::GetCurrent(Node* node) {
   // TODO (mmarchini): maybe throw some warning here when env is not valid
   addr_t envAddr = node->env()->kCurrentEnvironment;
-  std::cout << envAddr << std::endl;
 
   return Environment(node, envAddr);
 }
