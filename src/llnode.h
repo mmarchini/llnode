@@ -6,6 +6,7 @@
 #include <lldb/API/LLDB.h>
 
 #include "src/llv8.h"
+#include "src/node.h"
 
 namespace llnode {
 
@@ -51,6 +52,33 @@ class ListCmd : public CommandBase {
  private:
   v8::LLV8* llv8_;
 };
+
+class GetActiveHandlesCmd : public CommandBase {
+ public:
+  GetActiveHandlesCmd(v8::LLV8* llv8, node::Node* node) : llv8_(llv8),
+      node_(node) {}
+  ~GetActiveHandlesCmd() override {}
+
+  bool DoExecute(lldb::SBDebugger d, char** cmd,
+                 lldb::SBCommandReturnObject& result) override;
+ private:
+  v8::LLV8* llv8_;
+  node::Node* node_;
+};
+
+class GetActiveRequestsCmd : public CommandBase {
+ public:
+  GetActiveRequestsCmd(v8::LLV8* llv8, node::Node* node) : llv8_(llv8),
+      node_(node) {}
+  ~GetActiveRequestsCmd() override {}
+
+  bool DoExecute(lldb::SBDebugger d, char** cmd,
+                 lldb::SBCommandReturnObject& result) override;
+ private:
+  v8::LLV8* llv8_;
+  node::Node* node_;
+};
+
 
 }  // namespace llnode
 

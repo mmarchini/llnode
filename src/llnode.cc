@@ -4,12 +4,15 @@
 #include <string.h>
 
 #include <cinttypes>
+#include <sstream>
+#include <string>
 
 #include <lldb/API/SBExpressionOptions.h>
 
 #include "src/llnode.h"
 #include "src/llscan.h"
 #include "src/error.h"
+#include "src/node-inl.h"
 #include "src/llv8.h"
 
 namespace llnode {
@@ -23,6 +26,7 @@ using lldb::SBFrame;
 using lldb::SBStream;
 using lldb::SBSymbol;
 using lldb::SBTarget;
+using lldb::SBProcess;
 using lldb::SBThread;
 using lldb::SBValue;
 using lldb::eReturnStatusFailed;
@@ -300,6 +304,118 @@ bool ListCmd::DoExecute(SBDebugger d, char** cmd,
   return true;
 }
 
+bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
+                                    SBCommandReturnObject& result) {
+  int activeHandles = 0;
+  SBTarget target = d.GetSelectedTarget();
+  SBProcess process = target.GetProcess();
+  SBThread thread = process.GetSelectedThread();
+  std::ostringstream resultMsg;
+  v8::Value::InspectOptions inspect_options;
+  inspect_options.detailed = true;
+
+  llv8_->Load(target);
+  node_->Load(target);
+
+  if (!thread.IsValid()) {
+    result.SetError("No valid process, please start something\n");
+    return false;
+  }
+
+  node::Environment env = node::Environment::GetCurrent(node_);
+  if(env.raw() == -1) {
+    result.SetError("Node version doesn't support this command\n");
+    return false;
+  }
+  for (auto w : env.handle_wrap_queue()) {
+    if (w.persistent_addr() == 0) {
+      continue;
+    } else if (w.persistent_addr() == -1) {
+      result.SetError("Failed to load persistent handle");
+      activeHandles = -1;
+      break;
+    }
+
+    v8::JSObject v8_object(llv8_, w.v8_object_addr());
+    Error err;
+    std::string res = v8_object.Inspect(&inspect_options, err);
+    if (err.Fail()) {
+      std::stringstream sstream;
+      sstream << "Failed to load object at address " << std::hex << std::hex << w.v8_object_addr();
+      result.SetError(sstream.str().c_str());
+      activeHandles = -1;
+      break;
+    }
+
+    activeHandles++;
+    resultMsg << res.c_str() << std::endl;
+  }
+  if(activeHandles == -1) {
+    return false;
+  }
+
+  result.Printf("Active handles: %d\n\n", activeHandles);
+  result.Printf("%s", resultMsg.str().c_str());
+  return true;
+}
+
+// TODO (mmarchini) change != -1 comparisons with err.Fail()
+bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
+                                     SBCommandReturnObject& result) {
+  int activeRequests = 0;
+  SBTarget target = d.GetSelectedTarget();
+  SBProcess process = target.GetProcess();
+  SBThread thread = process.GetSelectedThread();
+  std::ostringstream resultMsg;
+  v8::Value::InspectOptions inspect_options;
+  inspect_options.detailed = true;
+
+  llv8_->Load(target);
+  node_->Load(target);
+
+  if (!thread.IsValid()) {
+    result.SetError("No valid process, please start something\n");
+    return false;
+  }
+
+  node::Environment env = node::Environment::GetCurrent(node_);
+  if(env.raw() == -1) {
+    result.SetError("Node version doesn't support this command\n");
+    return false;
+  }
+  for (auto w : env.req_wrap_queue()) {
+    if (w.persistent_addr() == 0) {
+      continue;
+    } else if (w.persistent_addr() == -1) {
+      result.SetError("Failed to load persistent handle");
+      activeRequests = -1;
+      break;
+    }
+
+    v8::JSObject v8_object(llv8_, w.v8_object_addr());
+    Error err;
+    std::string res = v8_object.Inspect(&inspect_options, err);
+    if (err.Fail()) {
+      std::stringstream sstream;
+      sstream << "Failed to load object at address " << std::hex << std::hex << w.v8_object_addr();
+      result.SetError(sstream.str().c_str());
+      activeRequests = -1;
+      break;
+    }
+
+    activeRequests++;
+    resultMsg << res.c_str() << std::endl;
+  }
+  if(activeRequests == -1) {
+    return false;
+  }
+
+  result.Printf("Active requests: %d\n\n", activeRequests);
+  result.Printf("%s", resultMsg.str().c_str());
+  return true;
+}
+
+
 
 void InitDebugMode() {
   bool is_debug_mode = false;
@@ -319,6 +435,7 @@ bool PluginInitialize(SBDebugger d) {
   llnode::InitDebugMode();
 
   static llnode::v8::LLV8 llv8;
+  static llnode::node::Node node(&llv8);
   static llnode::LLScan llscan = llnode::LLScan(&llv8);
 
   SBCommandInterpreter interpreter = d.GetCommandInterpreter();
@@ -403,6 +520,14 @@ bool PluginInitialize(SBDebugger d) {
       " * -s, --string string  - all properties that refer to the specified "
       "JavaScript string value\n"
       "\n");
+
+  v8.AddCommand(
+      "getactivehandles", new llnode::GetActiveHandlesCmd(&llv8, &node),
+      "Equivalent to running process._getActiveHandles.\n");
+
+  v8.AddCommand(
+      "getactiverequests", new llnode::GetActiveRequestsCmd(&llv8, &node),
+      "Equivalent to running process._getActiveRequests.\n");
 
   return true;
 }
