@@ -53,30 +53,39 @@ class ListCmd : public CommandBase {
   v8::LLV8* llv8_;
 };
 
-class GetActiveHandlesCmd : public CommandBase {
+class WorkqueueCmd : public CommandBase {
  public:
-  GetActiveHandlesCmd(v8::LLV8* llv8, node::Node* node) : llv8_(llv8),
-      node_(node) {}
-  ~GetActiveHandlesCmd() override {}
+  WorkqueueCmd(v8::LLV8* llv8, node::Node* node) : llv8_(llv8), node_(node) {}
+  ~WorkqueueCmd() override {}
+
+  inline v8::LLV8* llv8() { return llv8_; };
+  inline node::Node* node() { return node_; };
 
   bool DoExecute(lldb::SBDebugger d, char** cmd,
                  lldb::SBCommandReturnObject& result) override;
+
+  virtual std::string GetResultMessage(node::Environment* env, Error& err) {
+    return std::string();
+  };
  private:
   v8::LLV8* llv8_;
   node::Node* node_;
 };
 
-class GetActiveRequestsCmd : public CommandBase {
+class GetActiveHandlesCmd : public WorkqueueCmd {
  public:
-  GetActiveRequestsCmd(v8::LLV8* llv8, node::Node* node) : llv8_(llv8),
-      node_(node) {}
-  ~GetActiveRequestsCmd() override {}
+  GetActiveHandlesCmd(v8::LLV8* llv8, node::Node* node) :
+      WorkqueueCmd(llv8, node) {}
 
-  bool DoExecute(lldb::SBDebugger d, char** cmd,
-                 lldb::SBCommandReturnObject& result) override;
- private:
-  v8::LLV8* llv8_;
-  node::Node* node_;
+  std::string GetResultMessage(node::Environment* env, Error& err) override;
+};
+
+class GetActiveRequestsCmd : public WorkqueueCmd {
+ public:
+  GetActiveRequestsCmd(v8::LLV8* llv8, node::Node* node) :
+      WorkqueueCmd(llv8, node) {}
+
+  std::string GetResultMessage(node::Environment* env, Error& err) override;
 };
 
 

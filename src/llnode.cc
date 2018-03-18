@@ -304,15 +304,13 @@ bool ListCmd::DoExecute(SBDebugger d, char** cmd,
   return true;
 }
 
-bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
+bool WorkqueueCmd::DoExecute(SBDebugger d, char** cmd,
                                     SBCommandReturnObject& result) {
-  int activeHandles = 0;
   SBTarget target = d.GetSelectedTarget();
   SBProcess process = target.GetProcess();
   SBThread thread = process.GetSelectedThread();
-  std::ostringstream resultMsg;
-  v8::Value::InspectOptions inspect_options;
-  inspect_options.detailed = true;
+  std::string resultMsg;
+  Error err;
 
   llv8_->Load(target);
   node_->Load(target);
@@ -322,99 +320,95 @@ bool GetActiveHandlesCmd::DoExecute(SBDebugger d, char** cmd,
     return false;
   }
 
-  node::Environment env = node::Environment::GetCurrent(node_);
-  if(env.raw() == -1) {
-    result.SetError("Node version doesn't support this command\n");
-    return false;
-  }
-  for (auto w : env.handle_wrap_queue()) {
-    if (w.persistent_addr() == 0) {
-      continue;
-    } else if (w.persistent_addr() == -1) {
-      result.SetError("Failed to load persistent handle");
-      activeHandles = -1;
-      break;
-    }
-
-    v8::JSObject v8_object(llv8_, w.v8_object_addr());
-    Error err;
-    std::string res = v8_object.Inspect(&inspect_options, err);
-    if (err.Fail()) {
-      std::stringstream sstream;
-      sstream << "Failed to load object at address " << std::hex << std::hex << w.v8_object_addr();
-      result.SetError(sstream.str().c_str());
-      activeHandles = -1;
-      break;
-    }
-
-    activeHandles++;
-    resultMsg << res.c_str() << std::endl;
-  }
-  if(activeHandles == -1) {
+  node::Environment env = node::Environment::GetCurrent(node_, err);
+  if(err.Fail()) {
+    result.SetError(err.GetMessage());
     return false;
   }
 
-  result.Printf("Active handles: %d\n\n", activeHandles);
-  result.Printf("%s", resultMsg.str().c_str());
+  resultMsg = GetResultMessage(&env, err);
+
+  if(err.Fail()) {
+    result.SetError(err.GetMessage());
+    return false;
+  }
+
+  result.Printf("%s", resultMsg.c_str());
   return true;
 }
 
-// TODO (mmarchini) change != -1 comparisons with err.Fail()
-bool GetActiveRequestsCmd::DoExecute(SBDebugger d, char** cmd,
-                                     SBCommandReturnObject& result) {
-  int activeRequests = 0;
-  SBTarget target = d.GetSelectedTarget();
-  SBProcess process = target.GetProcess();
-  SBThread thread = process.GetSelectedThread();
-  std::ostringstream resultMsg;
+std::string GetActiveHandlesCmd::GetResultMessage(
+      node::Environment* env, Error& err) {
+  int active_handles = 0;
   v8::Value::InspectOptions inspect_options;
   inspect_options.detailed = true;
+  std::ostringstream resultMsg;
 
-  llv8_->Load(target);
-  node_->Load(target);
-
-  if (!thread.IsValid()) {
-    result.SetError("No valid process, please start something\n");
-    return false;
-  }
-
-  node::Environment env = node::Environment::GetCurrent(node_);
-  if(env.raw() == -1) {
-    result.SetError("Node version doesn't support this command\n");
-    return false;
-  }
-  for (auto w : env.req_wrap_queue()) {
-    if (w.persistent_addr() == 0) {
-      continue;
-    } else if (w.persistent_addr() == -1) {
-      result.SetError("Failed to load persistent handle");
-      activeRequests = -1;
+  for (auto w : env->handle_wrap_queue()) {
+    addr_t persistent_addr = w.persistent_addr(err);
+    if (err.Fail()) {
       break;
     }
+    if (persistent_addr == 0) {
+      continue;
+    }
 
-    v8::JSObject v8_object(llv8_, w.v8_object_addr());
-    Error err;
+    addr_t v8_object_addr = w.v8_object_addr(err);
+    if (err.Fail()) {
+      break;
+    }
+    v8::JSObject v8_object(llv8(), v8_object_addr);
     std::string res = v8_object.Inspect(&inspect_options, err);
     if (err.Fail()) {
-      std::stringstream sstream;
-      sstream << "Failed to load object at address " << std::hex << std::hex << w.v8_object_addr();
-      result.SetError(sstream.str().c_str());
-      activeRequests = -1;
+      Error::PrintInDebugMode("Failed to load object at address %" PRIx64,
+                              v8_object_addr);
       break;
     }
 
-    activeRequests++;
+    active_handles++;
     resultMsg << res.c_str() << std::endl;
   }
-  if(activeRequests == -1) {
-    return false;
-  }
 
-  result.Printf("Active requests: %d\n\n", activeRequests);
-  result.Printf("%s", resultMsg.str().c_str());
-  return true;
+  resultMsg << "Total: " << active_handles << std::endl;
+  return resultMsg.str();
 }
 
+
+std::string GetActiveRequestsCmd::GetResultMessage(
+      node::Environment* env, Error& err) {
+  int active_handles = 0;
+  v8::Value::InspectOptions inspect_options;
+  inspect_options.detailed = true;
+  std::ostringstream resultMsg;
+
+  for (auto w : env->req_wrap_queue()) {
+    addr_t persistent_addr = w.persistent_addr(err);
+    if (err.Fail()) {
+      break;
+    }
+    if (persistent_addr == 0) {
+      continue;
+    }
+
+    addr_t v8_object_addr = w.v8_object_addr(err);
+    if (err.Fail()) {
+      break;
+    }
+    v8::JSObject v8_object(llv8(), v8_object_addr);
+    std::string res = v8_object.Inspect(&inspect_options, err);
+    if (err.Fail()) {
+      Error::PrintInDebugMode("Failed to load object at address %" PRIx64,
+                              v8_object_addr);
+      break;
+    }
+
+    active_handles++;
+    resultMsg << res.c_str() << std::endl;
+  }
+
+  resultMsg << "Total: " << active_handles << std::endl;
+  return resultMsg.str();
+}
 
 
 void InitDebugMode() {
