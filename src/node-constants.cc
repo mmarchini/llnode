@@ -19,60 +19,66 @@ void Environment::Load() {
       "offset_Environment__handle_wrap_queue___Environment_HandleWrapQueue");
   kEnvContextEmbedderDataIndex =
       LoadConstant("const_Environment__kContextEmbedderDataIndex__int");
-  kCurrentEnvironment = LoadCurrentEnvironment();
+
+  Error err;
+  kCurrentEnvironment = LoadCurrentEnvironment(err);
 }
 
-addr_t Environment::LoadCurrentEnvironment() {
-  addr_t currentEnvironment = -1;
+addr_t Environment::LoadCurrentEnvironment(Error& err) {
+  if (kEnvContextEmbedderDataIndex == -1) {
+    err = Error::Failure("Missing Node's embedder data index");
+    return 0;
+  }
+  addr_t currentEnvironment = 0;
   SBProcess process = target_.GetProcess();
   SBThread thread = process.GetSelectedThread();
   if (!thread.IsValid()) {
-    // TODO Error("Invalid thread");
-    return -1;
+    err = Error::Failure("Invalid thread");
+    return 0;
   }
 
   llv8()->Load(target_);
 
   SBStream desc;
   if (!thread.GetDescription(desc)) {
-    // TODO Error("Couldn't get thread description");
-    return -1;
+    err = Error::Failure("Couldn't get thread description");
+    return 0;
   }
   SBFrame selected_frame = thread.GetSelectedFrame();
 
   uint32_t num_frames = thread.GetNumFrames();
+
+  // Heuristically finds the native context and gets the Environment from its
+  // embedder data.
   for (uint32_t i = 0; i < num_frames; i++) {
     SBFrame frame = thread.GetFrameAtIndex(i);
 
     if (!frame.GetSymbol().IsValid()) {
-      Error err;
+      Error v8_err;
       v8::JSFrame v8_frame(llv8(), static_cast<int64_t>(frame.GetFP()));
-      v8::JSFunction v8_function = v8_frame.GetFunction(err);
-      if (err.Fail()) {
-        // std::cout << "Failed to get V8 Frame" << std::endl;
+      v8::JSFunction v8_function = v8_frame.GetFunction(v8_err);
+      if (v8_err.Fail()) {
         continue;
       }
       v8::Value val;
-      val = v8_function.GetContext(err);
-      if (err.Fail()) {
-        // std::cout << "Failed to get V8 Context" << std::endl;
+      val = v8_function.GetContext(v8_err);
+      if (v8_err.Fail()) {
         continue;
       }
       bool found = false;
       while (!found) {
         v8::Context context(val);
-        v8::Value native = context.Native(err);
-        if (err.Success()) {
+        v8::Value native = context.Native(v8_err);
+        if (v8_err.Success()) {
           if (native.raw() == context.raw()) {
             found = true;
-            currentEnvironment = CurrentEnvironmentFromContext(native);
+            currentEnvironment = CurrentEnvironmentFromContext(native, err);
             break;
           }
         }
 
-        val = context.Previous(err);
-        if (err.Fail()) {
-          // std::cout << "Failed to get previous V8 Context" << std::endl;
+        val = context.Previous(v8_err);
+        if (v8_err.Fail()) {
           break;
         }
       }
@@ -82,25 +88,29 @@ addr_t Environment::LoadCurrentEnvironment() {
     }
   }
 
+  if (!currentEnvironment) {
+    err = Error::Failure(
+        "Couldn't find the Environemnt from the native context");
+  }
+
   return currentEnvironment;
 }
 
-addr_t Environment::CurrentEnvironmentFromContext(v8::Value context) {
+addr_t Environment::CurrentEnvironmentFromContext(v8::Value context,
+    Error& err) {
   llv8()->Load(target_);
-  Error err;
 
   v8::FixedArray contextArray = v8::FixedArray(context);
   v8::FixedArray embed = contextArray.Get<v8::FixedArray>(
       llv8()->context()->kEmbedderDataIndex, err);
   if (err.Fail()) {
-    return -1;
+    return 0;
   }
   v8::Smi encodedEnv = embed.Get<v8::Smi>(kEnvContextEmbedderDataIndex, err);
   if (err.Fail()) {
-    return -1;
-  } else {
-    return encodedEnv.raw();
+    return 0;
   }
+  return encodedEnv.raw();
 }
 
 

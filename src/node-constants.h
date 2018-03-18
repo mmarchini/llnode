@@ -40,8 +40,8 @@ class Environment : public Module {
   void Load();
 
  private:
-  addr_t LoadCurrentEnvironment();
-  addr_t CurrentEnvironmentFromContext(v8::Value context);
+  addr_t LoadCurrentEnvironment(Error& err);
+  addr_t CurrentEnvironmentFromContext(v8::Value context, Error& err);
 };
 
 class ReqWrapQueue : public Module {
