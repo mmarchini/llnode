@@ -3,7 +3,7 @@
 namespace llnode {
 namespace node {
 
-addr_t BaseObject::persistent_addr() {
+addr_t BaseObject::persistent_addr(Error& err) {
   lldb::SBError sberr;
 
   addr_t persistentHandlePtr =
@@ -11,18 +11,20 @@ addr_t BaseObject::persistent_addr() {
   addr_t persistentHandle =
       node_->process().ReadPointerFromMemory(persistentHandlePtr, sberr);
   if (sberr.Fail()) {
-    return -1;
+    err = Error::Failure("Failed to load persistent handle");
+    return 0;
   }
   return persistentHandle;
 }
 
-addr_t BaseObject::v8_object_addr() {
+addr_t BaseObject::v8_object_addr(Error& err) {
   lldb::SBError sberr;
 
-  addr_t persistentHandle = persistent_addr();
+  addr_t persistentHandle = persistent_addr(err);
   addr_t obj = node_->process().ReadPointerFromMemory(persistentHandle, sberr);
   if (sberr.Fail()) {
-    return -1;
+    err = Error::Failure("Failed to load object from persistent handle");
+    return 0;
   }
   return obj;
 }
@@ -36,22 +38,24 @@ ReqWrap ReqWrap::FromListNode(Node* node, addr_t list_node_addr) {
   return ReqWrap(node, list_node_addr - node->req_wrap()->kListNodeOffset);
 }
 
-Environment Environment::GetCurrent(Node* node) {
-  // TODO (mmarchini): maybe throw some warning here when env is not valid
+Environment Environment::GetCurrent(Node* node, Error& err) {
   addr_t envAddr = node->env()->kCurrentEnvironment;
+  if (envAddr == 0) {
+    err = Error::Failure("Couldn't get node's Environment");
+  }
 
   return Environment(node, envAddr);
 }
 
-Queue<HandleWrap, constants::HandleWrapQueue> Environment::handle_wrap_queue()
+HandleWrapQueue Environment::handle_wrap_queue()
     const {
-  return Queue<HandleWrap, constants::HandleWrapQueue>(
+  return HandleWrapQueue(
       node_, raw_ + node_->env()->kHandleWrapQueueOffset,
       node_->handle_wrap_queue());
 }
 
-Queue<ReqWrap, constants::ReqWrapQueue> Environment::req_wrap_queue() const {
-  return Queue<ReqWrap, constants::ReqWrapQueue>(
+ReqWrapQueue Environment::req_wrap_queue() const {
+  return ReqWrapQueue(
       node_, raw_ + node_->env()->kReqWrapQueueOffset, node_->req_wrap_queue());
 }
 

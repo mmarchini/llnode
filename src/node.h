@@ -31,15 +31,18 @@ class BaseNode {
   Node* node_;
 };
 
+typedef Queue<HandleWrap, constants::HandleWrapQueue> HandleWrapQueue;
+typedef Queue<ReqWrap, constants::ReqWrapQueue> ReqWrapQueue;
+
 class Environment : public BaseNode {
  public:
   Environment(Node* node, addr_t raw) : BaseNode(node), raw_(raw){};
   inline addr_t raw() { return raw_; };
 
-  static Environment GetCurrent(Node* node);
+  static Environment GetCurrent(Node* node, Error& err);
 
-  Queue<HandleWrap, constants::HandleWrapQueue> handle_wrap_queue() const;
-  Queue<ReqWrap, constants::ReqWrapQueue> req_wrap_queue() const;
+  HandleWrapQueue handle_wrap_queue() const;
+  ReqWrapQueue req_wrap_queue() const;
 
  private:
   addr_t raw_;
@@ -50,9 +53,9 @@ class BaseObject : public BaseNode {
   BaseObject(Node* node, addr_t raw) : BaseNode(node), raw_(raw){};
   inline addr_t raw() { return raw_; };
 
-  addr_t persistent_addr();
+  addr_t persistent_addr(Error& err);
 
-  addr_t v8_object_addr();
+  addr_t v8_object_addr(Error& err);
 
 
  private:
