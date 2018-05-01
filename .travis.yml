@@ -9,6 +9,18 @@ node_js:
   - "6"
   - "8"
   - "9"
+matrix:
+  include:
+    # Test Node.js master nightly build
+    - node_js: "node"
+      env: "NVM_NODEJS_ORG_MIRROR=https://nodejs.org/download/nightly"
+    # Test Node.js v8-canary nightly build
+    - node_js: "node"
+      env: "NVM_NODEJS_ORG_MIRROR=https://nodejs.org/download/v8-canary"
+  allow_failures:
+    # Allow the nightly installs to fail
+    - env: "NVM_NODEJS_ORG_MIRROR=https://nodejs.org/download/nightly"
+    - env: "NVM_NODEJS_ORG_MIRROR=https://nodejs.org/download/v8-canary"
 branches:
   only:
     - master
