@@ -136,6 +136,7 @@ class Map : public HeapObject {
   inline HeapObject MaybeConstructor(Error& err);
   inline HeapObject InstanceDescriptors(Error& err);
   inline int64_t BitField3(Error& err);
+  inline bool IsConstructor(Error& err);
   inline int64_t InObjectProperties(Error& err);
   inline int64_t InstanceSize(Error& err);
 

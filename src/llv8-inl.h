@@ -1,6 +1,8 @@
 #ifndef SRC_LLV8_INL_H_
 #define SRC_LLV8_INL_H_
 
+#include <bitset>
+#include <iostream>
 #include <cinttypes>
 #include "llv8.h"
 
@@ -129,6 +131,14 @@ inline bool Map::IsDictionary(Error& err) {
   if (err.Fail()) return false;
 
   return (field & (1 << v8()->map()->kDictionaryMapShift)) != 0;
+}
+
+
+inline bool Map::IsConstructor(Error& err) {
+  std::cout << std::hex << raw() << std::dec << std::endl;
+  std::cout << "bit_field_Offset " << v8()->map()->kBitFieldOffset << std::endl;
+  std::cout << "Byte: " << std::bitset<8>(LoadField(v8()->map()->kBitFieldOffset, err)) << std::endl;
+  return (LoadField(v8()->map()->kBitFieldOffset, err) & 0x40) == 0x40;
 }
 
 

@@ -1,5 +1,7 @@
 #include <assert.h>
 
+#include <iostream>
+#include <bitset>
 #include <algorithm>
 #include <cinttypes>
 #include <cstdarg>
@@ -1325,6 +1327,13 @@ std::string JSObject::Inspect(InspectOptions* options, Error& err) {
   if (err.Fail()) return std::string();
 
   Map map(map_obj);
+  bool lala = map.IsConstructor(err);
+  std::cout << "Is Constructor: " << lala << std::endl;
+  if (err.Fail()) {
+    std::cout << "AAAaaAAAAAaaa " << std::endl;
+    return std::string();
+  };
+
   HeapObject constructor_obj = map.Constructor(err);
   if (err.Fail()) return std::string();
 

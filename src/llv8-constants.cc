@@ -200,6 +200,8 @@ void Map::Load() {
       LoadConstant("class_Map__instance_descriptors__DescriptorArray");
   kBitField3Offset =
       LoadConstant("class_Map__bit_field3__int", "class_Map__bit_field3__SMI");
+  kBitFieldOffset = LoadConstant("class_Map__bit_field__char");
+  kIsConstructorBitStart = LoadConstant("[placeholder for is_construct bit start]", 6);
   kInObjectPropertiesOffset = LoadConstant(
       "class_Map__inobject_properties_or_constructor_function_index__int",
       "class_Map__inobject_properties__int");
