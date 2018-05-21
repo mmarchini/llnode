@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <iostream>
 #include <cinttypes>
 
 #include <lldb/API/SBExpressionOptions.h>
@@ -116,9 +117,11 @@ bool BacktraceCmd::DoExecute(SBDebugger d, char** cmd,
   uint32_t num_frames = thread.GetNumFrames();
   if (number != -1) num_frames = number;
   for (uint32_t i = 0; i < num_frames; i++) {
+    // std::cout << "============================" << std::endl;
     SBFrame frame = thread.GetFrameAtIndex(i);
     const char star = (frame == selected_frame ? '*' : ' ');
     const uint64_t pc = frame.GetPC();
+    // std::cout << std::hex << pc << std::dec << std::endl;
 
     if (!frame.GetSymbol().IsValid()) {
       v8::Error err;
@@ -128,6 +131,8 @@ bool BacktraceCmd::DoExecute(SBDebugger d, char** cmd,
         result.Printf("  %c frame #%u: 0x%016" PRIx64 " %s\n", star, i, pc,
                       res.c_str());
         continue;
+      } else {
+        v8::Error::PrintInDebugMode(err.GetMessage());
       }
     }
 

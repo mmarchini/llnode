@@ -1,5 +1,6 @@
 #include <assert.h>
 
+#include <iostream>
 #include <algorithm>
 #include <cinttypes>
 #include <cstdarg>
@@ -312,9 +313,11 @@ Smi JSFrame::FromFrameMarker(Value value) const {
 
 
 std::string JSFrame::Inspect(bool with_args, Error& err) {
+  // std::cout << 1 << std::endl;
   Value context =
       v8()->LoadValue<Value>(raw() + v8()->frame()->kContextOffset, err);
   if (err.Fail()) return std::string();
+  // std::cout << 2 << std::endl;
 
   Smi smi_context = FromFrameMarker(context);
   if (smi_context.Check() &&
@@ -322,10 +325,12 @@ std::string JSFrame::Inspect(bool with_args, Error& err) {
     return "<adaptor>";
   }
 
+  // std::cout << 3 << std::endl;
   Value marker =
       v8()->LoadValue<Value>(raw() + v8()->frame()->kMarkerOffset, err);
   if (err.Fail()) return std::string();
 
+  // std::cout << 4 << std::endl;
   Smi smi_marker = FromFrameMarker(marker);
   if (smi_marker.Check()) {
     int64_t value = smi_marker.GetValue();
@@ -348,24 +353,29 @@ std::string JSFrame::Inspect(bool with_args, Error& err) {
     }
   }
 
+  // std::cout << 5 << std::endl;
   // We are dealing with function or internal code (probably stub)
   JSFunction fn = GetFunction(err);
   if (err.Fail()) return std::string();
 
+  // std::cout << 6 << std::endl;
   int64_t fn_type = fn.GetType(err);
   if (err.Fail()) return std::string();
 
+  // std::cout << 7 << std::endl;
   if (fn_type == v8()->types()->kCodeType) return "<internal code>";
   if (fn_type != v8()->types()->kJSFunctionType) return "<non-function>";
 
   std::string args;
   if (with_args) {
+    // std::cout << 7 << std::endl;
     args = InspectArgs(fn, err);
     if (err.Fail()) return std::string();
   }
 
   char tmp[128];
   snprintf(tmp, sizeof(tmp), " fn=0x%016" PRIx64, fn.raw());
+  // std::cout << 8 << std::endl;
   return fn.GetDebugLine(args, err) + tmp;
 }
 
@@ -398,18 +408,22 @@ std::string JSFrame::InspectArgs(JSFunction fn, Error& err) {
 
 
 std::string JSFunction::GetDebugLine(std::string args, Error& err) {
+  // std::cout << "GetDebugLine::" << 1 << std::endl;
   SharedFunctionInfo info = Info(err);
   if (err.Fail()) return std::string();
 
+  // std::cout << "GetDebugLine::" << 2 << std::endl;
   std::string res = info.ProperName(err);
   if (err.Fail()) return std::string();
 
+  // std::cout << "GetDebugLine::" << 3 << std::endl;
   if (!args.empty()) res += "(" + args + ")";
 
   res += " at ";
 
   std::string shared;
 
+  // std::cout << "GetDebugLine::" << 4 << std::endl;
   res += info.GetPostfix(err);
   if (err.Fail()) return std::string();
 

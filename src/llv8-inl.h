@@ -1,6 +1,7 @@
 #ifndef SRC_LLV8_INL_H_
 #define SRC_LLV8_INL_H_
 
+#include <iostream>
 #include <cinttypes>
 #include "llv8.h"
 
@@ -272,23 +273,30 @@ HeapObject SharedFunctionInfo::GetScopeInfo(Error& err) {
 }
 
 String SharedFunctionInfo::Name(Error& err) {
+  // std::cout << "SharedFunctionInfo::Name - " << 1 << std::endl;
   if (v8()->shared_info()->kNameOrScopeInfoOffset == -1) return name(err);
 
+  // std::cout << "SharedFunctionInfo::Name - " << 2 << std::endl;
   HeapObject maybe_scope_info = name_or_scope_info(err);
   if (err.Fail()) return String();
 
+  // std::cout << "SharedFunctionInfo::Name - " << 3 << std::endl;
   if (String::IsString(v8(), maybe_scope_info, err))
     return String(maybe_scope_info);
 
   if (err.Fail()) return String();
 
+  // std::cout << "SharedFunctionInfo::Name - " << 4 << std::endl;
+  // std::cout << "ScopeInfo: 0x" << std::hex << maybe_scope_info.raw() << std::dec << std::endl;
   HeapObject maybe_function_name =
       ScopeInfo(maybe_scope_info).MaybeFunctionName(err);
   if (err.Fail()) return String();
 
+  // std::cout << "SharedFunctionInfo::Name - " << 5 << std::endl;
   if (String::IsString(v8(), maybe_function_name, err))
     return maybe_function_name;
 
+  // std::cout << "SharedFunctionInfo::Name - " << 6 << std::endl;
   err = Error::Failure("Couldn't get SharedFunctionInfo's name");
   return String();
 }
@@ -565,8 +573,20 @@ inline HeapObject ScopeInfo::MaybeFunctionName(Error& err) {
   int proper_index = v8()->scope_info()->kVariablePartIndex +
                      ParameterCount(err).GetValue() + 1 +
                      StackLocalCount(err).GetValue() +
-                     (ContextLocalCount(err).GetValue() * 2) + 1;
-  return FixedArray::Get<HeapObject>(proper_index, err);
+                     (ContextLocalCount(err).GetValue() * 2);
+
+  HeapObject maybe_function_name = FixedArray::Get<HeapObject>(proper_index, err);
+  if (err.Success()) return maybe_function_name;
+
+  proper_index++;
+  maybe_function_name = FixedArray::Get<HeapObject>(proper_index, err);
+
+  if (err.Success()) return maybe_function_name;
+
+  proper_index++;
+  maybe_function_name = FixedArray::Get<HeapObject>(proper_index, err);
+
+  return maybe_function_name;
 }
 
 inline bool Oddball::IsHoleOrUndefined(Error& err) {
