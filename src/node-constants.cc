@@ -30,7 +30,7 @@ addr_t Environment::LoadCurrentEnvironment(Error& err) {
     err = Error::Failure("Missing Node's embedder data index");
     return 0;
   }
-  addr_t currentEnvironment = 0;
+  addr_t current_environment = 0;
   SBProcess process = target_.GetProcess();
   SBThread thread = process.GetSelectedThread();
   if (!thread.IsValid()) {
@@ -39,13 +39,6 @@ addr_t Environment::LoadCurrentEnvironment(Error& err) {
   }
 
   llv8()->Load(target_);
-
-  SBStream desc;
-  if (!thread.GetDescription(desc)) {
-    err = Error::Failure("Couldn't get thread description");
-    return 0;
-  }
-  SBFrame selected_frame = thread.GetSelectedFrame();
 
   uint32_t num_frames = thread.GetNumFrames();
 
@@ -75,13 +68,10 @@ addr_t Environment::LoadCurrentEnvironment(Error& err) {
         }
         visited_contexts.insert(val.raw());
         v8::Context context(val);
-        v8::Value native = context.Native(v8_err);
-        if (v8_err.Success()) {
-          if (native.raw() == context.raw()) {
-            found = true;
-            currentEnvironment = CurrentEnvironmentFromContext(native, err);
-            break;
-          }
+        if (context.IsNative(err)) {
+          found = true;
+          current_environment = CurrentEnvironmentFromContext(context, err);
+          break;
         }
 
         val = context.Previous(v8_err);
@@ -95,29 +85,24 @@ addr_t Environment::LoadCurrentEnvironment(Error& err) {
     }
   }
 
-  if (!currentEnvironment) {
+  if (!current_environment) {
     err =
         Error::Failure("Couldn't find the Environemnt from the native context");
   }
 
-  return currentEnvironment;
+  return current_environment;
 }
 
-addr_t Environment::CurrentEnvironmentFromContext(v8::Value context,
+addr_t Environment::CurrentEnvironmentFromContext(v8::Context context,
                                                   Error& err) {
   llv8()->Load(target_);
 
-  v8::FixedArray contextArray = v8::FixedArray(context);
-  v8::FixedArray embed = contextArray.Get<v8::FixedArray>(
-      llv8()->context()->kEmbedderDataIndex, err);
+  v8::Smi environment =
+      context.GetEmbedderData<v8::Smi>(kEnvContextEmbedderDataIndex, err);
   if (err.Fail()) {
     return 0;
   }
-  v8::Smi encodedEnv = embed.Get<v8::Smi>(kEnvContextEmbedderDataIndex, err);
-  if (err.Fail()) {
-    return 0;
-  }
-  return encodedEnv.raw();
+  return environment.raw();
 }
 
 

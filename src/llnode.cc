@@ -130,7 +130,7 @@ bool BacktraceCmd::DoExecute(SBDebugger d, char** cmd,
                       res.c_str());
         continue;
       } else {
-        v8::Error::PrintInDebugMode("%s", err.GetMessage());
+        Error::PrintInDebugMode("%s", err.GetMessage());
       }
     }
 

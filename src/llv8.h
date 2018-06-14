@@ -384,6 +384,9 @@ class Context : public FixedArray {
   inline JSFunction Closure(Error& err);
   inline Value Previous(Error& err);
   inline Value Native(Error& err);
+  inline bool IsNative(Error& err);
+  template <class T>
+  inline T GetEmbedderData(int64_t index, Error& err);
   inline Value ContextSlot(int index, Error& err);
 
   std::string Inspect(Error& err);
