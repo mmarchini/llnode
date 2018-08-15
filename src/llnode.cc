@@ -6,8 +6,12 @@
 #include <cinttypes>
 #include <sstream>
 #include <string>
+#include <iostream>
 
 #include <lldb/API/SBExpressionOptions.h>
+
+#include <v8.h>
+#include <v8-postmortem.h>
 
 #include "src/error.h"
 #include "src/llnode.h"

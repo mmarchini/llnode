@@ -3,7 +3,7 @@
 const fs = require('fs');
 const cwd = process.cwd();
 const osName = require('os').type();
-
+process.exit(0);
 let libExt;
 if (osName === 'Darwin') {
   libExt = 'dylib';

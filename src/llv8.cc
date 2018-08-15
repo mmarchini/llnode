@@ -673,31 +673,15 @@ void Script::GetLineColumnFromPos(int64_t pos, int64_t& line, int64_t& column,
 }
 
 bool Value::IsHoleOrUndefined(Error& err) {
-  HeapObject obj(this);
-  if (!obj.Check()) return false;
-
-  int64_t type = obj.GetType(err);
-  if (err.Fail()) return false;
-
-  if (type != v8()->types()->kOddballType) return false;
-
-  Oddball odd(this);
-  return odd.IsHoleOrUndefined(err);
+  LLNodeMemoryAccessor memory_accessor(v8()->process());
+  ::v8::postmortem::Value obj(raw(), &memory_accessor);
+  return obj.IsUndefined();
 }
 
 
 // TODO(indutny): deduplicate this?
 bool Value::IsHole(Error& err) {
-  HeapObject obj(this);
-  if (!obj.Check()) return false;
-
-  int64_t type = obj.GetType(err);
-  if (err.Fail()) return false;
-
-  if (type != v8()->types()->kOddballType) return false;
-
-  Oddball odd(this);
-  return odd.IsHole(err);
+  return IsHoleOrUndefined(err);
 }
 
 

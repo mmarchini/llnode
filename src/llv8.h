@@ -5,9 +5,12 @@
 #include <string>
 
 #include <lldb/API/LLDB.h>
+#include <v8-postmortem.h>
 
 #include "src/error.h"
 #include "src/llv8-constants.h"
+
+using lldb::addr_t;
 
 namespace llnode {
 
@@ -35,6 +38,20 @@ class CodeMap;
   NAME(Value& v) : PARENT(v) {}                    \
   NAME(Value* v) : PARENT(v->v8(), v->raw()) {}    \
   static inline const char* ClassName() { return #NAME; }
+
+class LLNodeMemoryAccessor : public ::v8::postmortem::MemoryAccessor {
+ public:
+  LLNodeMemoryAccessor(lldb::SBProcess* process) : process_(process) { };
+
+  uintptr_t ReadMemory(uintptr_t address, size_t size) override {
+    lldb::SBError sberr;
+    return static_cast<uintptr_t>(process_->ReadUnsignedFromMemory(
+        static_cast<addr_t>(address), static_cast<uint32_t>(size), sberr));
+  };
+
+ private:
+  lldb::SBProcess* process_;
+};
 
 class Value {
  public:
@@ -64,8 +81,8 @@ class Value {
   inline int64_t raw() const { return raw_; }
   inline LLV8* v8() const { return v8_; }
 
-  bool IsHoleOrUndefined(Error& err);
-  bool IsHole(Error& err);
+  bool IsHoleOrUndefined(Error& err);  // using V8 API
+  bool IsHole(Error& err);  // using V8 API
 
   std::string Inspect(InspectOptions* options, Error& err);
   std::string GetTypeName(Error& err);
@@ -464,6 +481,15 @@ class LLV8 {
   LLV8() : target_(lldb::SBTarget()) {}
 
   void Load(lldb::SBTarget target);
+
+  lldb::SBTarget* target() {
+    return &target_;
+  }
+
+  lldb::SBProcess* process() {
+    return &process_;
+  }
+
 
  private:
   template <class T>

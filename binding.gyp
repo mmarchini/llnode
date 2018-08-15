@@ -10,6 +10,7 @@
       "lldb_lib_dir%": "",
       "lldb_lib_so%": "",
       "build_addon": "false",
+      "build_plugin": "false",
   },
 
   "target_defaults": {
@@ -67,29 +68,30 @@
     ]
   },
 
-  "targets": [{
-    "target_name": "plugin",
-    "type": "shared_library",
-    "sources": [
-      "src/constants.cc",
-      "src/error.cc",
-      "src/llnode.cc",
-      "src/llv8.cc",
-      "src/llv8-constants.cc",
-      "src/llscan.cc",
-      "src/node.cc",
-      "src/node-constants.cc",
-    ],
-    "conditions": [
-      [ "OS == 'win'", {
-        "sources": [
-          "windows/llnode.def",
-        ],
-      }]
-    ]
-  }],
-
   "conditions": [
+    [ "build_plugin == 'true'", {
+      "targets": [{
+        "target_name": "plugin",
+        "type": "shared_library",
+        "sources": [
+          "src/constants.cc",
+          "src/error.cc",
+          "src/llnode.cc",
+          "src/llv8.cc",
+          "src/llv8-constants.cc",
+          "src/llscan.cc",
+          "src/node.cc",
+          "src/node-constants.cc",
+        ],
+        "conditions": [
+          [ "OS == 'win'", {
+            "sources": [
+              "windows/llnode.def",
+            ],
+          }]
+        ]
+      }]
+    }],
     [ "build_addon == 'true'", {
       "targets": [{
         "target_name": "addon",

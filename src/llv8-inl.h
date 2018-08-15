@@ -31,7 +31,9 @@ inline T LLV8::LoadValue(int64_t addr, Error& err) {
 
 
 inline bool Smi::Check() const {
-  return (raw() & v8()->smi()->kTagMask) == v8()->smi()->kTag;
+  LLNodeMemoryAccessor memory_accessor(v8()->process());
+  ::v8::postmortem::Value obj(raw(), &memory_accessor);
+  return obj.IsInt32() || obj.IsUint32();
 }
 
 
