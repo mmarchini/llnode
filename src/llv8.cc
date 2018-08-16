@@ -20,6 +20,8 @@ void LLV8::Load(SBTarget target) {
   // Reload process anyway
   process_ = target.GetProcess();
 
+  memory_accessor_ = new LLNodeMemoryAccessor(&process_);
+
   // No need to reload
   if (target_ == target) return;
 
@@ -673,8 +675,7 @@ void Script::GetLineColumnFromPos(int64_t pos, int64_t& line, int64_t& column,
 }
 
 bool Value::IsHoleOrUndefined(Error& err) {
-  LLNodeMemoryAccessor memory_accessor(v8()->process());
-  ::v8::postmortem::Value obj(raw(), &memory_accessor);
+  auto obj = v8()->V8Load<::v8::postmortem::Value>(raw());
   return obj.IsUndefined();
 }
 

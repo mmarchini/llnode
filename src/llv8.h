@@ -99,8 +99,8 @@ class Smi : public Value {
  public:
   V8_VALUE_DEFAULT_METHODS(Smi, Value)
 
-  inline bool Check() const;
-  inline int64_t GetValue() const;
+  inline bool Check() const;  // using V8 API
+  inline int64_t GetValue() const;  // using V8 API
 
   std::string ToString(Error& err);
   std::string Inspect(Error& err);
@@ -482,6 +482,11 @@ class LLV8 {
 
   void Load(lldb::SBTarget target);
 
+  template <class C>
+  C V8Load(uintptr_t address) {
+    return memory_accessor_->Get<C>(address);
+  }
+
   lldb::SBTarget* target() {
     return &target_;
   }
@@ -506,6 +511,7 @@ class LLV8 {
 
   lldb::SBTarget target_;
   lldb::SBProcess process_;
+  LLNodeMemoryAccessor* memory_accessor_;
 
   constants::Common common;
   constants::Smi smi;

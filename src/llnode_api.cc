@@ -9,7 +9,6 @@
 #include <lldb/API/SBTarget.h>
 #include <lldb/API/SBThread.h>
 #include <lldb/lldb-enumerations.h>
-#include <v8-postmortem.h>
 
 #include <iostream>
 #include <algorithm>

@@ -2,6 +2,7 @@
 #define SRC_LLV8_INL_H_
 
 #include <cinttypes>
+#include <iostream>
 #include "llv8.h"
 
 namespace llnode {
@@ -31,13 +32,25 @@ inline T LLV8::LoadValue(int64_t addr, Error& err) {
 
 
 inline bool Smi::Check() const {
-  LLNodeMemoryAccessor memory_accessor(v8()->process());
-  ::v8::postmortem::Value obj(raw(), &memory_accessor);
+  auto obj = v8()->V8Load<::v8::postmortem::Value>(raw());
   return obj.IsInt32() || obj.IsUint32();
 }
 
 
 inline int64_t Smi::GetValue() const {
+  auto obj = v8()->V8Load<::v8::postmortem::Value>(raw());
+  if (obj.IsInt32()) {
+    auto int32 = v8()->V8Load<::v8::postmortem::Int32>(raw());
+    return int32.Value();
+  } else if (obj.IsUint32()) {
+    auto uint32 = v8()->V8Load<::v8::postmortem::Uint32>(raw());
+    return uint32.Value();
+  } else {
+    std::cerr << "unknown numeric type" << std::endl;
+    return -1;
+  }
+  return obj.IsInt32() || obj.IsUint32();
+
   return raw() >> (v8()->smi()->kShiftSize + v8()->smi()->kTagMask);
 }
 
