@@ -44,11 +44,11 @@ jobs:
         run: TEST_LLDB_BINARY=`which lldb-3.9` npm run nyc-test-all
         if: matrix.node.version == '14.x'
         continue-on-error: true
-      # TODO(mmarchini): Get codecov token or move to coveralls
-      # - name: run coverage
-      #   run: |
-      #     npm run coverage
-      #     npm run codecov-upload
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel: true
   linter:
     runs-on: [ubuntu-latest]
     steps:
