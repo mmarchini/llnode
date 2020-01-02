@@ -44,11 +44,16 @@ jobs:
         run: TEST_LLDB_BINARY=`which lldb-3.9` npm run nyc-test-all
         if: matrix.node.version == '14.x'
         continue-on-error: true
-      - name: Coveralls
+      - name: Coveralls JS
         uses: coverallsapp/github-action@master
         with:
+          path-to-lcov: ./coverage-js.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          parallel: true
+      - name: Coveralls C++
+        uses: coverallsapp/github-action@master
+        with:
+          path-to-lcov: ./coverage-cc.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
   linter:
     runs-on: [ubuntu-latest]
     steps:
