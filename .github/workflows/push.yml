@@ -34,10 +34,6 @@ jobs:
         run: |
           sudo apt-get -qq update
           sudo apt-get install lldb-3.9 liblldb-3.9-dev lcov gdb -y
-      - name: install dependencies osx
-        if: matrix.os == 'macos-latest'
-        run: |
-          brew install lcov
       - name: npm install
         run: |
           npm install --llnode_build_addon=true --llnode_coverage=true
@@ -49,13 +45,16 @@ jobs:
         if: matrix.node.version == '14.x'
         continue-on-error: true
       - name: prepare coverage
+        if: matrix.os == 'ubuntu-latest'
         run: npm run coverage
       - name: coveralls js
+        if: matrix.os == 'ubuntu-latest'
         uses: coverallsapp/github-action@master
         with:
           path-to-lcov: ./coverage-js.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: coveralls C++
+        if: matrix.os == 'ubuntu-latest'
         uses: coverallsapp/github-action@master
         with:
           path-to-lcov: ./coverage-cc.info
