@@ -46,18 +46,15 @@ jobs:
         continue-on-error: true
       - name: prepare coverage
         if: matrix.os == 'ubuntu-latest'
-        run: npm run coverage
-      - name: coveralls js
+        run: |
+          npm run coverage
+          cat ./coverage-js.info > ./coverage.info
+          cat ./coverage-cc.info >> ./coverage.info
+      - name: coveralls
         if: matrix.os == 'ubuntu-latest'
         uses: coverallsapp/github-action@master
         with:
-          path-to-lcov: ./coverage-js.info
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: coveralls C++
-        if: matrix.os == 'ubuntu-latest'
-        uses: coverallsapp/github-action@master
-        with:
-          path-to-lcov: ./coverage-cc.info
+          path-to-lcov: ./coverage.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
   linter:
     runs-on: [ubuntu-latest]
