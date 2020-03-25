@@ -9,7 +9,9 @@
 </p>
 
 [![npm](https://img.shields.io/npm/v/llnode.svg?style=flat-square)](https://npmjs.org/package/llnode)
-![ci](https://img.shields.io/github/workflow/status/nodejs/llnode/push/master?style=flat-square)
+![ci-test-linux](https://img.shields.io/github/workflow/status/mmarchini/llnode/test-linux/master?style=flat-square)
+![ci-test-macos](https://img.shields.io/github/workflow/status/mmarchini/llnode/test-macos/master?style=flat-square)
+![ci-test-nightly](https://img.shields.io/github/workflow/status/mmarchini/llnode/test-nightly/master?style=flat-square)
 [![coverage](https://img.shields.io/coveralls/github/nodejs/llnode/master?style=flat-square)](https://coveralls.io/github/nodejs/llnode)
 
 

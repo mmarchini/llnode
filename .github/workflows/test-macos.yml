@@ -1,0 +1,31 @@
+name: test-macos
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  schedule:
+    - cron:  '0 0 * * *'
+
+jobs:
+  tests:
+    runs-on: macos-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - version: 10.x
+          - version: 12.x
+    steps:
+      - uses: actions/checkout@v1
+      - name: Use Node.js ${{ matrix.node.version }} ${{ matrix.node.mirror }}
+        uses: mmarchini/setup-node@mirror
+        with:
+          node-version: ${{ matrix.node.version }}
+      - name: npm install
+        run: |
+          npm install --llnode_build_addon=true
+      - name: run tests
+        run: npm run test-all

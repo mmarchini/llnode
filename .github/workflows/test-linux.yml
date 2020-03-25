@@ -1,0 +1,46 @@
+name: test-linux
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  schedule:
+    - cron:  '0 0 * * *'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - version: 10.x
+          - version: 12.x
+    steps:
+      - uses: actions/checkout@v1
+      - name: Use Node.js ${{ matrix.node.version }}
+        uses: mmarchini/setup-node@mirror
+        with:
+          node-version: ${{ matrix.node.version }}
+      - name: install dependencies Linux
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get install lldb-6 liblldb-6-dev lcov gdb -y
+          sudo ln -s $(which lldb-6.0) /usr/local/bin/lldb
+      - name: npm install
+        run: |
+          npm install --llnode_build_addon=true --llnode_coverage=true
+      - name: run tests
+        run: npm run nyc-test-all
+      - name: prepare coverage
+        run: |
+          npm run coverage
+          cat ./coverage-js.info > ./coverage.info
+          cat ./coverage-cc.info >> ./coverage.info
+      - name: coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          path-to-lcov: ./coverage.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}

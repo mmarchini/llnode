@@ -1,0 +1,37 @@
+name: test-nightly
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  schedule:
+    - cron:  '0 0 * * *'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - mirror: https://nodejs.org/download/nightly
+          - mirror: https://nodejs.org/download/v8-canary
+    steps:
+      - uses: actions/checkout@v1
+      - name: Use Node.js v14.x ${{ matrix.node.mirror }}
+        uses: mmarchini/setup-node@mirror
+        with:
+          node-version: v14.x
+          node-mirror: ${{ matrix.node.mirror }}
+      - name: install dependencies Linux
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get install lldb-6 liblldb-6-dev lcov gdb -y
+          sudo ln -s $(which lldb-6.0) /usr/local/bin/lldb
+      - name: npm install
+        run: |
+          npm install --llnode_build_addon=true
+      - name: run tests
+        run: npm run test-all
